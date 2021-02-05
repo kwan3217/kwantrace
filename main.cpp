@@ -14,12 +14,16 @@ int main() {
   ouf.close();
 
   kwantrace::Union scene;
-  scene.push_back(std::make_unique<kwantrace::Sphere>());
+  scene.push_back(std::make_shared<kwantrace::Sphere>());
   scene.last().translate(5,0,0);
-  scene.push_back(std::make_unique<kwantrace::Sphere>());
+  scene.last().pigment=std::make_shared<kwantrace::ConstantColor>(1,0,0,0,0);
+  scene.push_back(std::make_shared<kwantrace::Sphere>());
+  scene.last().scale(0.5,0.5,1);
   scene.last().translate(5,2,0);
-  scene.push_back(std::make_unique<kwantrace::Sphere>());
+  scene.last().pigment=std::make_shared<kwantrace::ConstantColor>(0,1,0,0,0);
+  scene.push_back(std::make_shared<kwantrace::Sphere>());
   scene.last().translate(5,0,2);
+  scene.last().pigment=std::make_shared<kwantrace::ConstantColor>(0,0,1,0,0);
   kwantrace::PerspectiveCamera<uint8_t> cam=kwantrace::PerspectiveCamera<uint8_t>(width,height);
   std::unique_ptr<uint8_t[]> pixbuf=cam.render(scene,width,height);
 

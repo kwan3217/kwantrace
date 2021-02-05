@@ -11,27 +11,33 @@ namespace kwantrace {
 
   class Union : public CompositePrimitive {
   protected:
-    virtual bool intersect_local(const Ray &ray, double &t) override {
+    virtual bool intersect_local(const Ray &ray, double &t, vector<int> &indexes) const override {
       bool result=false;
       t=std::numeric_limits<double>::infinity();
-      lastHit=-1;
       int i=0;
+      int index=-1;
       for(auto&& primitive:*this) {
         double this_t;
-        if(primitive->intersect(ray,this_t)) {
+        if(primitive->intersect(ray, this_t, indexes)) {
           result=true;
           if(this_t<t) {
             t=this_t;
-            lastHit=i;
+            index=i;
           }
         }
         i++;
       }
+      //Note that if the sub-object which is hit is also composite, then it will itself have already pushed
+      //onto this vector. So, the vector ends up indexed from inside to out.
+      indexes.push_back(index);
       return result;
     };
-    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point) override {
-      if(lastHit>0) {
-        return (*this)[lastHit]->normal(point);
+    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point, std::vector<int> &indexes, int level=-1) override {
+      if(level<0) {
+        level=indexes.size()-1;
+      }
+      if(indexes[level]>0) {
+        return (*this)[indexes[level]]->normal(point,indexes,level-1);
       } else {
         return Eigen::Vector3d();
       }

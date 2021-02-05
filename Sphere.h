@@ -20,7 +20,7 @@ namespace kwantrace {
      *
      * Derivation on https://omoikane.kwansystems.org/wiki/index.php/Geolocation#Projection_onto_a_spherical_cloud_deck
      */
-    virtual bool intersect_local(const Ray &ray, double &t) override {
+    virtual bool intersect_local(const Ray &ray, double &t, std::vector<int> &unused) const override {
       double a = ray.v.dot(ray.v);
       double b = 2 * ray.r0.dot(ray.v);
       double c = ray.r0.dot(ray.r0) - 1;
@@ -42,7 +42,7 @@ namespace kwantrace {
       return true;
     }
 
-    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point) override {
+    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point, std::vector<int> &indexes, int level) override {
       return point / point.norm();
     }
 

@@ -11,12 +11,12 @@
 #include "common.h"
 
 namespace kwantrace {
-  class TransformChain : public std::vector<std::unique_ptr<Eigen::Affine3d>> {
+  class TransformChain : public std::vector<std::shared_ptr<Eigen::Affine3d>> {
   private:
   public:
-    Eigen::Matrix4d M;
-    Eigen::Matrix4d Minv;
-    Eigen::Matrix4d MinvT;
+    Eigen::Matrix4d Mb2w;
+    Eigen::Matrix4d Mw2b;
+    Eigen::Matrix4d Mb2wN;
 
     Eigen::Matrix4d combine() {
       Eigen::Affine3d result{Eigen::Affine3d::Identity()};
@@ -27,9 +27,9 @@ namespace kwantrace {
     }
 
     virtual void prepareRender() {
-      M = combine();
-      Minv = M.inverse();
-      MinvT = Minv.transpose();
+      Mb2w = combine();
+      Mw2b = Mb2w.inverse();
+      Mb2wN = Mw2b.transpose();
     }
 
     //! POV-Ray like translation operation
@@ -39,7 +39,7 @@ namespace kwantrace {
      *   will be at point after this operation
      */
     int translate(const Eigen::Vector3d &point) {
-      push_back(std::make_unique<Eigen::Affine3d>(Eigen::Translation3d(-point)));
+      push_back(std::make_unique<Eigen::Affine3d>(Eigen::Translation3d(point)));
       return size() - 1;
     }
 

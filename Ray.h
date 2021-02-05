@@ -28,8 +28,8 @@ namespace kwantrace {
      * @return Reference to this ray
      *
      * Note that the following two expressions are equivalent:
-     *   r*=M;
-     *   r=M*r;
+     *   r*=Mb2w;
+     *   r=Mb2w*r;
      */
     Ray &operator*=(const Eigen::Matrix4d &M) {
       r0 = mul1(M, r0); //Transform the initial point such that this vector *is* subject to translation

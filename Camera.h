@@ -17,10 +17,11 @@ namespace kwantrace {
       transformChain.prepareRender();
     }
 
-    pixtype render_pixel(Primitive& scene, double x, double y) {
+    pixtype render_pixel(const Primitive& scene, double x, double y, std::vector<int>& indexes) {
       Ray ray = project(x, y);
       double t;
-      if(scene.intersect(ray,t)) {
+      indexes.clear();
+      if(scene.intersect(ray, t, indexes)) {
         return pixtype(t*10);
       } else {
         return 0;
@@ -31,7 +32,7 @@ namespace kwantrace {
     TransformChain transformChain;
 
     Ray project(double x, double y) {
-      return transformChain.M * project_local(x, y);
+      return transformChain.Mb2w * project_local(x, y);
     }
     //! Render a scene into a given pixelbuf
     /**
@@ -45,11 +46,12 @@ namespace kwantrace {
     virtual void render(Primitive& scene, int width, int height, pixtype pixbuf[]) {
       prepareRender();
       scene.prepareRender();
+      std::vector<int> indexes;
       for (int row = 0; row < height; row++) {
         double y = 0.5-(double(row) + 0.5) / height;
         for (int col = 0; col < width; col++) {
           double x = (double(col) + 0.5) / width - 0.5;
-          pixbuf[row*width+col]=render_pixel(scene,x,y);
+          pixbuf[row*width+col]=render_pixel(scene,x,y,indexes);
         }
       }
     }
