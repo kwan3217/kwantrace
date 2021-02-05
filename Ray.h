@@ -11,16 +11,16 @@ namespace kwantrace {
   class Ray {
   public:
     //! Ray initial point
-    Eigen::Vector3d r0;
+    PositionVector r0;
     //! Ray direction
-    Eigen::Vector3d v;
+    DirectionVector v;
 
-    Ray(Eigen::Vector3d Lr0, Eigen::Vector3d Lv) : r0(Lr0), v(Lv) {};
+    Ray(PositionVector Lr0, DirectionVector Lv) : r0(Lr0), v(Lv) {};
 
-    Ray(double x0, double y0, double z0, double vx, double vy, double vz) : r0(Eigen::Vector3d(x0, y0, z0)),
-                                                                            v(Eigen::Vector3d(vx, vy, vz)) {}
+    Ray(double x0, double y0, double z0, double vx, double vy, double vz) : r0(PositionVector(x0, y0, z0)),
+                                                                            v(DirectionVector(vx, vy, vz)) {}
 
-    Ray() : r0(Eigen::Vector3d(0, 0, 0)), v(Eigen::Vector3d(0, 0, 0)) {}
+    Ray() : r0(PositionVector(0, 0, 0)), v(DirectionVector(0, 0, 0)) {}
     //! Transform this ray with a matrix
     /**
      *
@@ -32,8 +32,8 @@ namespace kwantrace {
      *   r=Mb2w*r;
      */
     Ray &operator*=(const Eigen::Matrix4d &M) {
-      r0 = mul1(M, r0); //Transform the initial point such that this vector *is* subject to translation
-      v = mul0(M, v); //Transform the direction such that this vector *is not* subject to translation
+      r0 = M*r0; //Transform the initial point such that this vector *is* subject to translation
+      v = M*v; //Transform the direction such that this vector *is not* subject to translation
       return *this;
     }
     //! Evaluate the ray
@@ -42,8 +42,8 @@ namespace kwantrace {
      * @param t Parameter to evaluate the ray at
      * @return Point on ray at given parameter
      */
-    Eigen::Vector3d operator()(double t) {
-      return r0 + v * t;
+    PositionVector operator()(double t) {
+      return static_cast<Eigen::Vector3d>(r0 + v * t);
     }
   };
 

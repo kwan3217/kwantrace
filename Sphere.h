@@ -42,15 +42,15 @@ namespace kwantrace {
       return true;
     }
 
-    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point, std::vector<int> &indexes, int level) override {
-      return point / point.norm();
+    virtual DirectionVector normal_local(const PositionVector &point, std::vector<int> &indexes, int level) const override {
+      return Eigen::Vector3d(point / point.norm());
     }
 
-    virtual bool inside_local(const Eigen::Vector3d &point) override {
+    virtual bool inside_local(const PositionVector &point) const override {
       return point.norm() < 1;
     }
 
-    static Eigen::Vector2d uv_local(const Eigen::Vector3d &point) {
+    static Eigen::Vector2d uv_local(const PositionVector &point) {
       double lon = atan2(point.y(), point.x());
       if (lon < 0) lon += EIGEN_PI;
       double lat = asin(point.z() / point.norm());

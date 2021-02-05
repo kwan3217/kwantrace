@@ -32,18 +32,18 @@ namespace kwantrace {
      * of an object -- the function may return any value at all. That being said, it is
      * better to be forgiving in the face of floating point limited precision.
      */
-    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point, std::vector<int> &indexes, int level=-1) = 0;
+    virtual DirectionVector normal_local(const PositionVector &point, std::vector<int> &indexes, int level= -1) const = 0;
     //!Check if a point is inside the object, in object local space
     /**
      *
      * @param[in] point Point in object coordinates
      * @return True if point is inside object, false if not
      */
-    virtual bool inside_local(const Eigen::Vector3d &point) = 0;
+    virtual bool inside_local(const PositionVector &point) const = 0;
+    std::shared_ptr<ColorField> _pigment;
   public:
     //! Transformation chain
     TransformChain transformChain;
-    std::shared_ptr<ColorField> pigment;
     bool inside_out=false;
     virtual ~Primitive() {};
     /**Prepare an object for rendering. This must be called
@@ -51,8 +51,8 @@ namespace kwantrace {
      */
     virtual void prepareRender() {
       transformChain.prepareRender();
-      if(pigment) {
-        pigment->prepareRender();
+      if(_pigment) {
+        _pigment->prepareRender();
       }
     }
     /**
@@ -66,15 +66,16 @@ namespace kwantrace {
       return intersect_local(transformChain.Mw2b * ray, t, indexes);
     };
 
-    Eigen::Vector3d normal(const Eigen::Vector3d &point, std::vector<int> &indexes, int level=-1) {
-      return (inside_out?-1:1)*mul0(transformChain.Mb2wN, normal_local(mul1(transformChain.Mw2b, point), indexes, level));
+    DirectionVector normal(const PositionVector &point, std::vector<int> &indexes, int level=-1) {
+      return (Eigen::Vector3d) ((inside_out ? -1 : 1) *
+                                (transformChain.Mb2wN * normal_local(transformChain.Mw2b * point, indexes, level)));
     }
 
-    bool inside(const Eigen::Vector3d &point) {
-      return inside_out^inside_local(mul1(transformChain.Mw2b, point));
+    bool inside(const PositionVector &point) {
+      return inside_out^inside_local(transformChain.Mw2b*point);
     }
 
-    int translate(const Eigen::Vector3d &point) { return transformChain.translate(point); }
+    int translate(const PositionVector &point) { return transformChain.translate(point); }
 
     int translate(double x, double y, double z) { return transformChain.translate(x, y, z); }
 
