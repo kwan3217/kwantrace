@@ -30,3 +30,18 @@
 *.exe
 *.out
 *.app
+/cmake-build-debug/
+/cmake-build-debug-coverage/
+/cmake-build-release/
+/cmake_install.cmake
+/.idea/workspace.xml
+/.idea/usage.statistics.xml
+/.idea/tasks.xml
+
+
+# Output images
+*.pgm
+
+/kwantrace.cbp
+/Testing/Temporary/LastTest.log
+/Makefile
