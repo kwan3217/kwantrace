@@ -32,23 +32,14 @@ namespace kwantrace {
       indexes.push_back(index);
       return result;
     };
-    virtual Eigen::Vector3d normal_local(const Eigen::Vector3d &point, std::vector<int> &indexes, int level=-1) override {
-      if(level<0) {
-        level=indexes.size()-1;
-      }
-      if(indexes[level]>0) {
-        return (*this)[indexes[level]]->normal(point,indexes,level-1);
-      } else {
-        return Eigen::Vector3d();
-      }
-    };
-    virtual bool inside_local(const Eigen::Vector3d &point) override {
+    virtual bool inside_local(const PositionVector &point) const override {
       bool result=false;
       for(auto&& primitive:*this) {
         result|=primitive->inside(point);
       }
       return result;
     };
+
   };
 
 }
