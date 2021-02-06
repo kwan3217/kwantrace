@@ -6,7 +6,7 @@
 #define KWANTRACE_RENDERABLE_H
 
 #include <memory>
-#include "TransformChain.h"
+#include "Transformable.h"
 #include "Ray.h"
 #include "Field.h"
 

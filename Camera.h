@@ -7,7 +7,7 @@
 #include <memory>
 #include <limits>
 #include "Ray.h"
-#include "TransformChain.h"
+#include "Transformable.h"
 
 namespace kwantrace {
 

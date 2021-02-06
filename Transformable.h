@@ -2,8 +2,8 @@
 // Created by jeppesen on 2/3/21.
 //
 
-#ifndef KWANTRACE_TRANSFORMCHAIN_H
-#define KWANTRACE_TRANSFORMCHAIN_H
+#ifndef KWANTRACE_TRANSFORMABLE_H
+#define KWANTRACE_TRANSFORMABLE_H
 
 #include <vector>
 #include <memory>
@@ -101,4 +101,4 @@ namespace kwantrace {
   };
 }
 
-#endif //KWANTRACE_TRANSFORMCHAIN_H
+#endif //KWANTRACE_TRANSFORMABLE_H
