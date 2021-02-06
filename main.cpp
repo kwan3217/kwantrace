@@ -14,16 +14,16 @@ int main() {
   ouf.close();
 
   kwantrace::Union scene;
-  scene.push_back(std::make_shared<kwantrace::Sphere>());
+  scene.addChild(std::make_shared<kwantrace::Sphere>());
   scene.last().translate(5,0,0);
   scene.last().set_pigment(std::make_shared<kwantrace::ConstantColor>(1,0,0));
 
-  scene.push_back(std::make_shared<kwantrace::Sphere>());
+  scene.addChild(std::make_shared<kwantrace::Sphere>());
   scene.last().scale(0.5,0.5,1);
   scene.last().translate(5,2,0);
   scene.last().set_pigment(std::make_shared<kwantrace::ConstantColor>(0,1,0));
 
-  scene.push_back(std::make_shared<kwantrace::Sphere>());
+  scene.addChild(std::make_shared<kwantrace::Sphere>());
   scene.last().translate(5,0,2);
   scene.last().set_pigment(std::make_shared<kwantrace::ConstantColor>(0,0,1));
 

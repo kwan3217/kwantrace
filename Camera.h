@@ -24,7 +24,7 @@ namespace kwantrace {
       return img[((row*width)+col)*pixdepth+channel];
     }
 
-    void render_pixel(const Primitive& scene, double x, double y, std::vector<int>& indexes, int width, int col, int row, pixtype pixbuf[]) {
+    void render_pixel(const Renderable& scene, double x, double y, std::vector<int>& indexes, int width, int col, int row, pixtype pixbuf[]) {
       Ray ray = project(x, y);
       double t;
       indexes.clear();
@@ -59,7 +59,7 @@ namespace kwantrace {
      * @param[in] pixbuf Pixel buffer -- a 1D array of pixels, which will be internally used as
      *    a 2D row-major array (IE rows are contiguous in memory)
      */
-    virtual void render(Primitive& scene, int width, int height, pixtype pixbuf[]) {
+    virtual void render(Renderable& scene, int width, int height, pixtype pixbuf[]) {
       prepareRender();
       scene.prepareRender();
       std::vector<int> indexes;
@@ -72,7 +72,7 @@ namespace kwantrace {
       }
     }
 
-    std::unique_ptr<pixtype[]> render(Primitive& scene, int width, int height) {
+    std::unique_ptr<pixtype[]> render(Renderable& scene, int width, int height) {
       std::unique_ptr<pixtype[]> pixbuf = std::unique_ptr<pixtype[]>(new pixtype[width * height * pixdepth]);
       render(scene, width, height, pixbuf.get());
       return pixbuf;

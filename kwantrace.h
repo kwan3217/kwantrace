@@ -7,7 +7,7 @@
 
 #include "common.h"
 #include "Ray.h"
-#include "Primitive.h"
+#include "Renderable.h"
 #include "Camera.h"
 
 

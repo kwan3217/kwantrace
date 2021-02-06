@@ -5,7 +5,7 @@
 #ifndef KWANTRACE_SPHERE_H
 #define KWANTRACE_SPHERE_H
 
-#include "Primitive.h"
+#include "Renderable.h"
 
 namespace kwantrace {
   class Sphere : public Primitive {

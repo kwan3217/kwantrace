@@ -10,14 +10,14 @@
 
 namespace kwantrace {
   template<int N, typename T=double>
-  class Field {
+  class Field:public Transformable {
   private:
     typedef Eigen::Matrix<T,N,1> OutVector;
+    //! Transformation chain
+    TransformChain transformChain;
   protected:
     virtual OutVector field_local(const PositionVector& r)=0;
   public:
-    //! Transformation chain
-    TransformChain transformChain;
     void prepareRender() {
       transformChain.prepareRender();
     }
