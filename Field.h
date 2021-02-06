@@ -13,15 +13,10 @@ namespace kwantrace {
   class Field:public Transformable {
   private:
     typedef Eigen::Matrix<T,N,1> OutVector;
-    //! Transformation chain
-    TransformChain transformChain;
   protected:
     virtual OutVector field_local(const PositionVector& r)=0;
   public:
-    void prepareRender() {
-      transformChain.prepareRender();
-    }
-    virtual OutVector operator()(const PositionVector& r) {return field_local(transformChain.Mw2b*r);};
+    virtual OutVector operator()(const PositionVector& r) {return field_local(Mw2b*r);};
     virtual ~Field() {};
     Eigen::Matrix<T,N,1> operator()(double x, double y, double z) {return *this(PositionVector(x, y, z));};
   };

@@ -93,16 +93,16 @@ namespace kwantrace {
      * @return
      */
     virtual bool intersect(const Ray &ray, double &t, std::vector<int> &indexes) const override {
-      return intersect_local(transformChain.Mw2b * ray, t, indexes);
+      return intersect_local(Mw2b * ray, t, indexes);
     };
 
     virtual DirectionVector normal(const PositionVector &point, std::vector<int> &indexes, int level=-1) const override {
       return (DirectionVector) ((inside_out ? -1 : 1) *
-                                (transformChain.Mb2wN * normal_local(transformChain.Mw2b * point, indexes, level)));
+                                (Mb2wN * normal_local(Mw2b * point, indexes, level)));
     }
 
     virtual bool inside(const PositionVector &point) const override {
-      return inside_out^inside_local(transformChain.Mw2b*point);
+      return inside_out^inside_local(Mw2b*point);
     }
   };
 

@@ -12,13 +12,9 @@
 namespace kwantrace {
 
   template<int pixdepth=3, typename pixtype=uint8_t>
-  class Camera {
+  class Camera: public Transformable {
   protected:
     virtual Ray project_local(double x, double y) = 0;
-
-    virtual void prepareRender() {
-      transformChain.prepareRender();
-    }
 
     static pixtype& pixel(pixtype img[], int width, int col, int row, int channel) {
       return img[((row*width)+col)*pixdepth+channel];
@@ -45,10 +41,8 @@ namespace kwantrace {
     }
 
   public:
-    TransformChain transformChain;
-
     Ray project(double x, double y) {
-      return transformChain.Mb2w * project_local(x, y);
+      return Mb2w * project_local(x, y);
     }
     //! Render a scene into a given pixelbuf
     /**

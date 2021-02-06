@@ -11,35 +11,26 @@
 #include "common.h"
 
 namespace kwantrace {
-  class TransformChain : public std::vector<std::shared_ptr<Eigen::Affine3d>> {
+  class Transformable {
   private:
-  public:
-    Eigen::Matrix4d Mb2w;
-    Eigen::Matrix4d Mw2b;
-    Eigen::Matrix4d Mb2wN;
-
     Eigen::Matrix4d combine() {
       Eigen::Affine3d result{Eigen::Affine3d::Identity()};
-      for (auto&& trans:*this) {
+      for (auto&& trans:transformChain) {
         result = (*trans) * result;
       }
       return result.matrix();
     }
 
+    std::vector<std::shared_ptr<Eigen::Affine3d>> transformChain;
+  public:
+    Eigen::Matrix4d Mb2w;
+    Eigen::Matrix4d Mw2b;
+    Eigen::Matrix4d Mb2wN;
+
     virtual void prepareRender() {
       Mb2w = combine();
       Mw2b = Mb2w.inverse();
       Mb2wN = Mw2b.transpose();
-    }
-
-  };
-
-  class Transformable {
-  protected:
-    TransformChain transformChain;
-  public:
-    virtual void prepareRender() {
-      transformChain.prepareRender();
     }
     virtual std::shared_ptr<Eigen::Affine3d> addTransform(std::shared_ptr<Eigen::Affine3d> transform) {
       transformChain.push_back(transform);
