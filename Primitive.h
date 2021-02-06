@@ -46,6 +46,16 @@ namespace kwantrace {
     TransformChain transformChain;
     bool inside_out=false;
     virtual ~Primitive() {};
+    void set_pigment(std::shared_ptr<ColorField> Lpigment) {
+      _pigment=Lpigment;
+    }
+    virtual bool eval_pigment(const PositionVector& v, ObjectColor& pigment, std::vector<int> &indexes, int level=-1) const {
+      if(_pigment) {
+        pigment=(*_pigment)(v);
+        return true;
+      }
+      return false;
+    }
     /**Prepare an object for rendering. This must be called
      * between any change to the object and rendering the object
      */
@@ -83,7 +93,7 @@ namespace kwantrace {
 
     int rotate(double x, double y, double z) { return transformChain.rotate(x, y, z); }
 
-    int scale(const Eigen::Vector3d &point) { return transformChain.scale(point); }
+    int scale(const PositionVector &point) { return transformChain.scale(point); }
 
     int scale(double x, double y, double z) { return transformChain.scale(x, y, z); }
   };

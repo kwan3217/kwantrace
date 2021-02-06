@@ -38,13 +38,13 @@ namespace kwantrace {
      * @param[in] point Vector to move the object. This is in the physical sense -- an object which was at the origin
      *   will be at point after this operation
      */
-    int translate(const Eigen::Vector3d &point) {
+    int translate(const PositionVector &point) {
       push_back(std::make_unique<Eigen::Affine3d>(Eigen::Translation3d(point)));
       return size() - 1;
     }
 
     int translate(double x, double y, double z) {
-      return translate(Eigen::Vector3d(x, y, z));
+      return translate(PositionVector(x, y, z));
     }
     //! POV-Ray like rotation operation
     /**
@@ -57,15 +57,15 @@ namespace kwantrace {
     int rotate(const Eigen::Vector3d &point) {
       int result = -1;
       if (point.x() != 0) {
-        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.x()), Eigen::Vector3d(1, 0, 0))));
+        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.x()), PositionVector(1, 0, 0))));
         result = size() - 1;
       }
       if (point.y() != 0) {
-        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.y()), Eigen::Vector3d(0, 1, 0))));
+        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.y()), PositionVector(0, 1, 0))));
         result = size() - 1;
       }
       if (point.z() != 0) {
-        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.z()), Eigen::Vector3d(0, 0, 1))));
+        push_back(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.z()), PositionVector(0, 0, 1))));
         result = size() - 1;
       }
       return result;
@@ -84,6 +84,7 @@ namespace kwantrace {
       return scale(Eigen::Vector3d(x == 0 ? 1 : x, y == 0 ? 1 : y, z == 0 ? 1 : z));
     }
 
+    /*
     //! Point-toward
     static Eigen::Affine3d
     point_toward(const Eigen::Vector3d &p_b, const Eigen::Vector3d &p_r, const Eigen::Vector3d &t_b,
@@ -96,6 +97,7 @@ namespace kwantrace {
                                            const Eigen::Vector3d &sky = Eigen::Vector3d(0, 0, 1)) {
       //Eigen::Affine3d result=point_toward(Eigen)
     }
+     */
   };
 }
 

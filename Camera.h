@@ -5,10 +5,13 @@
 #ifndef KWANTRACE_CAMERA_H
 #define KWANTRACE_CAMERA_H
 #include <memory>
+#include <limits>
+#include "Ray.h"
+#include "TransformChain.h"
 
 namespace kwantrace {
 
-  template<typename pixtype=uint8_t>
+  template<int pixdepth=3, typename pixtype=uint8_t>
   class Camera {
   protected:
     virtual Ray project_local(double x, double y) = 0;
@@ -17,14 +20,27 @@ namespace kwantrace {
       transformChain.prepareRender();
     }
 
-    pixtype render_pixel(const Primitive& scene, double x, double y, std::vector<int>& indexes) {
+    static pixtype& pixel(pixtype img[], int width, int col, int row, int channel) {
+      return img[((row*width)+col)*pixdepth+channel];
+    }
+
+    void render_pixel(const Primitive& scene, double x, double y, std::vector<int>& indexes, int width, int col, int row, pixtype pixbuf[]) {
       Ray ray = project(x, y);
       double t;
       indexes.clear();
       if(scene.intersect(ray, t, indexes)) {
-        return pixtype(t*10);
-      } else {
-        return 0;
+        ObjectColor color;
+        if(scene.eval_pigment(ray(t),color, indexes)) {
+          for(int i=0;i<pixdepth;i++) {
+            if(color[i]<=0) {
+              pixel(pixbuf, width, col, row, i)=0;
+            } else if (color[i]>=1.0) {
+              pixel(pixbuf, width, col, row, i)=std::numeric_limits<pixtype>::max();
+            } else {
+              pixel(pixbuf, width, col, row, i) = pixtype(color[i] * std::numeric_limits<pixtype>::max());
+            }
+          }
+        }
       }
     }
 
@@ -51,13 +67,13 @@ namespace kwantrace {
         double y = 0.5-(double(row) + 0.5) / height;
         for (int col = 0; col < width; col++) {
           double x = (double(col) + 0.5) / width - 0.5;
-          pixbuf[row*width+col]=render_pixel(scene,x,y,indexes);
+          render_pixel(scene, x, y, indexes, width, col, row, pixbuf);
         }
       }
     }
 
     std::unique_ptr<pixtype[]> render(Primitive& scene, int width, int height) {
-      std::unique_ptr<pixtype[]> pixbuf = std::unique_ptr<pixtype[]>(new pixtype[width * height]);
+      std::unique_ptr<pixtype[]> pixbuf = std::unique_ptr<pixtype[]>(new pixtype[width * height * pixdepth]);
       render(scene, width, height, pixbuf.get());
       return pixbuf;
     }

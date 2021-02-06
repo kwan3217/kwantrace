@@ -8,8 +8,8 @@
 #include "common.h"
 
 namespace kwantrace {
-  template<typename pixtype=uint8_t>
-  class PerspectiveCamera : public Camera<pixtype> {
+  template<int pixdepth=3, typename pixtype=uint8_t>
+  class PerspectiveCamera : public Camera<pixdepth,pixtype> {
   public:
     DirectionVector direction;
     DirectionVector right;
