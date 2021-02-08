@@ -6,72 +6,68 @@
 #define KWANTRACE_SHADER_H
 
 namespace kwantrace {
-  /** Emulate POV-Ray ambient shading. The ambient property of an object is uniform throughout space, but is a color
-   * vector. The ambient color of this point is the intrinsic color at the point times the ambient constant.
-   *
-   */
-  ObjectColor ambient_shade(const Position& r,          ///<[in] Point in world space
-                            const ColorField& intrinsicColor, ///<[in] intrinsic color field
-                            const ObjectColor& ambient        ///<[in] ambient value field
-  ) {
-    return (ambient.array()*intrinsicColor(r).array()).matrix();
-  }
-  /** Emulate a slightly-extended ambient shading. In this case, we allow the ambient property to vary throughout space.
-   *
-   */
-  ObjectColor ambient_shade(const Position& r,                ///<[in] Point in world space
-                            const ColorField& intrinsicColor, ///<[in] intrinsic color field
-                            const ColorField& ambient         ///<[in] ambient value field
-  ) {
-    return (ambient(r).array()*intrinsicColor(r).array()).matrix();
-  }
-  /**
-   * Lambert diffuse shading model
-   * @param r
-   * @param intrinsicColor
-   * @param n
-   * @param v_light
-   * @return
-   */
-  ObjectColor diffuse_shade(const Position& r,                ///<[in] Point in world space
-                            const ColorField& intrinsicColor, ///<[in] intrinsic color field
-                            const Direction& n,
-                            const Direction& v_light
-  ) {
-      double dot=n.dot(v_light);
-      if(dot<0) {
-        return ObjectColor();
-      } else {
-        return intrinsicColor(r)*dot;
-      }
-  };
-
   class Shader {
   private:
-    RenderableList objectList;
-    LightList lightList;
   public:
     /**
      * Calculate the shade at this point
      * @return color produced by this shader
      */
-    virtual ObjectColor shade(
-      const Renderable& object,                          ///<[in] Object being shaded
-      const Position& r,                                 ///<[in] Position of intersection
-      const Direction& v,                                ///<[in] Direction of incoming ray
-      const Direction& n                                 ///<[in] Normal vector
-    )=0;
+    virtual RayColor shade(
+            const Renderable& object,   ///<[in] Object being shaded
+            const Renderable& scene,    ///<[in] Intended to be a composite object containing all objects in the scene
+            const LightList& lightList, ///<[in] all the lights in the scene
+            const Position& r,          ///<[in] Position of intersection
+            const Direction& v,         ///<[in] Direction of incoming ray, must be normalized
+            const Direction& n          ///<[in] Normal vector, must be normalized
+    )const=0;
+    virtual void prepareRender() {};
   };
 
   class AmbientShader:public Shader {
   public:
-    virtual ObjectColor shade(
-            const Renderable& object,   ///<[in] Object being shaded
-            const Position& r,          ///<[in] Position of intersection
-            const Direction& v,         ///<[in] Direction of incoming ray
-            const Direction& n          ///<[in] Normal vector
-    ) {
+    virtual RayColor shade(
+            const Renderable& object,
+            const Renderable& scene,
+            const LightList& lightList,
+            const Position& r,
+            const Direction& v,
+            const Direction& n
+    ) const override {
+      RayColor result=RayColor::Zero();
+      ObjectColor objectColor;
+      if(object.evalPigment(r,objectColor)) {
+        result=0.1 * objectColor.head<3>();
+      }
+      return result;
+    }
+  };
 
+  class DiffuseShader:public Shader {
+  public:
+    virtual RayColor shade(
+            const Renderable& object,
+            const Renderable& scene,
+            const LightList& lightList,
+            const Position& r,
+            const Direction& v,
+            const Direction& n
+    ) const override {
+      RayColor result=RayColor::Zero();
+      ObjectColor objectColor;
+      if(object.evalPigment(r,objectColor)) {
+        for(auto&& light:lightList) {
+          Ray r_light=light->rayTo(r);
+          double lightVisible=light->amountVisible(scene,r_light);
+          if(lightVisible>0) {
+            double dot=n.dot(r_light.v);
+            if(dot>0) {
+              result+=(dot*objectColor.array()*light->color.array()).matrix().head<3>();
+            }
+          }
+        }
+      }
+      return result;
     }
   };
 
@@ -79,23 +75,36 @@ namespace kwantrace {
   private:
     std::vector<std::shared_ptr<Shader>> shaderList;
   public:
+    virtual void prepareRender() override {
+      for(auto shader:shaderList) {
+        shader->prepareRender();
+      }
+    };
     virtual std::shared_ptr<Shader> add(std::shared_ptr<Shader> shader) {
       shaderList.push_back(shader);
       return shader;
     }
-    virtual ObjectColor shade(
+    virtual RayColor shade(
             const Renderable& object,
-            const Renderable& scene,
+            const Renderable& objects,
             const LightList& lights,
             const Position& r,
             const Direction& v,
             const Direction& n
-    ) {
-      ObjectColor result;
+    ) const override {
+      RayColor result=RayColor::Zero();
       for(auto shader:shaderList) {
-        result+=shader->shade(object,scene,lights,r,v,n);
+        result+=shader->shade(object,objects,lights,r,v,n);
       }
       return result;
+    }
+  };
+
+  class POVRayShader:public CompositeShader {
+  public:
+    POVRayShader() {
+      add(std::make_shared<AmbientShader>());
+      add(std::make_shared<DiffuseShader>());
     }
   };
 }
