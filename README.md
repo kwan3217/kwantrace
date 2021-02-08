@@ -11,7 +11,7 @@ All of these could be eliminated by changing the parser up. What if instead
 of a custom scene description language, we just used C++? The program would
 construct the scene, then call the render routine to do the actual rendering.
 
-    Scene s();
+    Shader s();
     Cone c(vector(),radius1,radius2);
     s.add(c);
     // Lots more stuff

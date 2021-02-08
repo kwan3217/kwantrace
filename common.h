@@ -5,11 +5,17 @@
 #ifndef KWANTRACE_COMMON_H
 #define KWANTRACE_COMMON_H
 
-#include <eigen3/Eigen/Dense>
 #include <numbers>
 #include <cmath>
 
 namespace kwantrace {
+  /** Alias for a pointer of a given type, intended to indicate intent that
+   * this pointer does not own anything and should never be used to delete, free,
+   * or otherwise deallocate what is being pointed at.
+   */
+  template<typename T>
+  using Observer= const T*;
+
   inline double deg2rad(double deg) { return deg * std::numbers::pi / 180.0; }
 
   inline double rad2deg(double rad) { return rad * 180.0 / std::numbers::pi; }
@@ -26,10 +32,8 @@ namespace kwantrace {
   inline double atand(double arg) {return rad2deg(std::atan(arg));}
   inline double atan2d(double y, double x) {return rad2deg(std::atan2(y,x));}
 
-  template<int N, typename T> class Field;
-  typedef Field<5,double> ColorField;
-  typedef Eigen::Matrix<double,5,1> ObjectColor;
   typedef Eigen::Vector3d RayColor;
+  typedef Eigen::Matrix<double,5,1> ObjectColor;
   template<int N>
   class  PDVector: public Eigen::Vector3d {
   public:
@@ -37,9 +41,9 @@ namespace kwantrace {
     PDVector(Eigen::Vector3d matrix): Eigen::Vector3d(matrix) {}
     PDVector(double x, double y, double z):Eigen::Vector3d(x,y,z) {}
   };
-  typedef PDVector<1> PositionVector;
-  typedef PDVector<0> DirectionVector;
-  inline Eigen::Vector4d extend(PositionVector v, double w) {
+  typedef PDVector<1> Position;
+  typedef PDVector<0> Direction;
+  inline Eigen::Vector4d extend(Position v, double w) {
     Eigen::Vector4d result;
     result<<v,w;
     return result;

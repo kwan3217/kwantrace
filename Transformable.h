@@ -5,23 +5,19 @@
 #ifndef KWANTRACE_TRANSFORMABLE_H
 #define KWANTRACE_TRANSFORMABLE_H
 
-#include <vector>
-#include <memory>
-#include <eigen3/Eigen/Dense>
-#include "common.h"
-
 namespace kwantrace {
+  typedef std::vector<std::shared_ptr<Eigen::Affine3d>> TransformList;
   class Transformable {
   private:
     Eigen::Matrix4d combine() {
       Eigen::Affine3d result{Eigen::Affine3d::Identity()};
-      for (auto&& trans:transformChain) {
+      for (auto&& trans:transformList) {
         result = (*trans) * result;
       }
       return result.matrix();
     }
 
-    std::vector<std::shared_ptr<Eigen::Affine3d>> transformChain;
+    TransformList transformList;
   public:
     Eigen::Matrix4d Mb2w;
     Eigen::Matrix4d Mw2b;
@@ -32,22 +28,22 @@ namespace kwantrace {
       Mw2b = Mb2w.inverse();
       Mb2wN = Mw2b.transpose();
     }
+
     virtual std::shared_ptr<Eigen::Affine3d> addTransform(std::shared_ptr<Eigen::Affine3d> transform) {
-      transformChain.push_back(transform);
+      transformList.push_back(transform);
       return transform;
     }
-    //! POV-Ray like translation operation
-    /**
+    /**POV-Ray like translation operation.
      *
      * @param[in] point Vector to move the object. This is in the physical sense -- an object which was at the origin
      *   will be at point after this operation
      */
-    std::shared_ptr<Eigen::Affine3d> translate(const PositionVector &point) {
+    std::shared_ptr<Eigen::Affine3d> translate(const Position &point) {
       return addTransform(std::make_unique<Eigen::Affine3d>(Eigen::Translation3d(point)));
     }
 
     std::shared_ptr<Eigen::Affine3d> translate(double x, double y, double z) {
-      return translate(PositionVector(x, y, z));
+      return translate(Position(x, y, z));
     }
 
     //! POV-Ray like rotation operation
@@ -61,13 +57,13 @@ namespace kwantrace {
     std::shared_ptr<Eigen::Affine3d> rotate(const Eigen::Vector3d &point) {
       std::shared_ptr<Eigen::Affine3d> result;
       if (point.x() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.x()), PositionVector(1, 0, 0))));
+        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.x()), Position(1, 0, 0))));
       }
       if (point.y() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.y()), PositionVector(0, 1, 0))));
+        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.y()), Position(0, 1, 0))));
       }
       if (point.z() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.z()), PositionVector(0, 0, 1))));
+        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.z()), Position(0, 0, 1))));
       }
       return result;
     }
