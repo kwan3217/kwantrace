@@ -44,7 +44,8 @@
 /.idea/tasks.xml
 
 # Output images
-*.pgm
+*.p?m
+*.mp4
 
 /kwantrace.cbp
 /Testing/Temporary/LastTest.log

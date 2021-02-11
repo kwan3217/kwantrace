@@ -1,9 +1,9 @@
 PROJECT_NAME           = "KwanTrace"
-PROJECT_NUMBER         = v0.0.1
+PROJECT_NUMBER         = v0.0.3
 PROJECT_BRIEF          = C++ Header-based ray tracer
-INLINE_INHERITED_MEMB  = YES
+INLINE_INHERITED_MEMB  = NO
 BUILTIN_STL_SUPPORT    = YES
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = YES
 EXTRACT_PRIV_VIRTUAL   = YES
 EXTRACT_PACKAGE        = YES
@@ -165,7 +165,7 @@ EXAMPLE_RECURSIVE      = NO
 # that contain images that are to be included in the documentation (see the
 # \image command).
 
-IMAGE_PATH             =
+IMAGE_PATH             = ./image/
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program
