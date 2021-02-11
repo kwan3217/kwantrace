@@ -5,95 +5,174 @@
 #ifndef KWANTRACE_TRANSFORMABLE_H
 #define KWANTRACE_TRANSFORMABLE_H
 
+
 namespace kwantrace {
-  typedef std::vector<std::shared_ptr<Eigen::Affine3d>> TransformList;
+  ///! List of pointers to transforms
+  typedef std::vector<std::shared_ptr<Transformation>> TransformList;
+  /** Entity that can be transformed. In general, we use the POV-Ray model where each transformation
+   * is thought of as *physically moving* the Transformable. For instance, if we start with a Transformable
+   * that is located at the origin and do a translate(1,2,3), the object will then be located at x=1, y=2, z=3.
+   *
+   * Also like POV-Ray, we treat all transformations as being about the origin, not about the center of the
+   * given object which might not be at the origin any more. For instance:
+   *
+   *    * If an object is already 5 units from the origin and you call scale(3,3,3)
+   *         * the object will then be 15 units from the origin.
+   *    * If an object is at <5,0,0> and pointing down the x axis, and you call rotateZ(90)
+   *         * it will be pointing down the Y axis, but also at <0,5,0>.
+   *
+   * With a little bit of thought, we can see what kind of *frame* transformation corresponds to a
+   * *physical* move. Let's look at a translation by \f$\vec{r}\f$. In the body frame, we look at
+   * the origin. In the world frame, that same point has coordinates of \f$\vec{r}\f$
+   *
+   * This is designed to be efficient, with as much effort done at scene construction and prepareRender() as
+   * possible, to save as much time effort during the render. This makes sense, because the render will be
+   * called literally millions of times. You may chain literally any number of transformations, and only pay
+   * the cost at prepareRender(). During the render, the cost of 0, 1, or 1000 transformations are all the same.
+   */
   class Transformable {
   private:
-    Eigen::Matrix4d combine() {
-      Eigen::Affine3d result{Eigen::Affine3d::Identity()};
+    /** Combine transformations in the transformation list. In terms of physical transformations, it is as if
+     * the the transforms in the list are performed in order.
+     *
+     * \internal In actuality, the transforms are converted to
+     * matrices, and then combined by matrix multiplication with the transformations in order from the right.
+     * This is the traditional way to combine matrices, and is required if you are then going to use M*v
+     * to transform a column vector.
+     * @return Matrix representing the combination of all transformations performed in order.
+     */
+    Eigen::Matrix4d combine() const {
+      Eigen::Matrix4d result{Eigen::Matrix4d::Identity()};
       for (auto&& trans:transformList) {
-        result = (*trans) * result;
+        result = trans->matrix() * result;
       }
       return result.matrix();
     }
-
+    /** List of pointers to physical transformations to be performed, in order. The transformations themselves
+     * can be changed through their pointer, but prepareRender must be called to actually apply the transformation
+     */
     TransformList transformList;
   public:
-    Eigen::Matrix4d Mb2w;
-    Eigen::Matrix4d Mw2b;
-    Eigen::Matrix4d Mb2wN;
+    Eigen::Matrix4d Mb2w; ///< Body-to-world transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
+    Eigen::Matrix4d Mw2b; ///< World-to-body transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
+    Eigen::Matrix4d Mb2wN;///< Body-to-world transformation matrix for surface normals, only valid between a call to prepareRender and any changes to any transforms in the list
 
+    /** Prepare for rendering
+     *
+     * \internal This is done by calling combine() to combine all of the transformations, and
+     *    then computing ancillary matrices Mb2w, Mw2b, and Mb2wN, which will also be needed.
+     */
     virtual void prepareRender() {
       Mb2w = combine();
       Mw2b = Mb2w.inverse();
       Mb2wN = Mw2b.transpose();
     }
 
-    virtual std::shared_ptr<Eigen::Affine3d> addTransform(std::shared_ptr<Eigen::Affine3d> transform) {
+    /** Add a transformation to the list
+     *
+     * @param[in] transform A transformation
+     * @return a pointer to this transformation. The transformation may be modified through this pointer, but prepareRender()
+     *   must be called in order to make the changes active.
+     */
+    virtual void addTransform(std::shared_ptr<Transformation> transform) {
       transformList.push_back(transform);
-      return transform;
     }
-    /**POV-Ray like translation operation.
+    /**Create a POV-Ray like translation operation and add it to the list. This is in the physical sense -- an
+     *  object which was at the origin will be at point after this operation
      *
-     * @param[in] point Vector to move the object. This is in the physical sense -- an object which was at the origin
-     *   will be at point after this operation
+     * @param[in] point Vector to move the object.
+     * @return a pointer to this transformation. The transformation may be modified through this pointer, but prepareRender()
+     *   must be called in order to make the changes active.
      */
-    std::shared_ptr<Eigen::Affine3d> translate(const Position &point) {
-      return addTransform(std::make_unique<Eigen::Affine3d>(Eigen::Translation3d(point)));
-    }
-
-    std::shared_ptr<Eigen::Affine3d> translate(double x, double y, double z) {
-      return translate(Position(x, y, z));
-    }
-
-    //! POV-Ray like rotation operation
-    /**
-     *
-     * @param point rotation vector. Each component represents a rotation around the corresponding axis, applied in
-     *    x,y,z order. Each component is the magnitude of the rotation in degrees. Note that since Kwantrace is
-     *    right-handed, a positive component means a physical right-handed rotation. So for instance, if an object
-     *    was pointed down the
-     */
-    std::shared_ptr<Eigen::Affine3d> rotate(const Eigen::Vector3d &point) {
-      std::shared_ptr<Eigen::Affine3d> result;
-      if (point.x() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.x()), Position(1, 0, 0))));
-      }
-      if (point.y() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.y()), Position(0, 1, 0))));
-      }
-      if (point.z() != 0) {
-        result=addTransform(std::make_unique<Eigen::Affine3d>(Eigen::AngleAxis(deg2rad(point.z()), Position(0, 0, 1))));
-      }
+    std::shared_ptr<Translation> translate(Position point) {
+      auto result=std::make_shared<Translation>(point);
+      addTransform(result);
       return result;
     }
 
-    std::shared_ptr<Eigen::Affine3d> rotate(double x, double y, double z) {
-      return rotate(Eigen::Vector3d(x, y, z));
-    }
-
-    std::shared_ptr<Eigen::Affine3d> scale(const Eigen::Vector3d &point) {
-      return addTransform(std::make_unique<Eigen::Affine3d>(Eigen::Scaling(point.x(), point.y(), point.z())));
-    }
-
-    std::shared_ptr<Eigen::Affine3d> scale(double x, double y, double z) {
-      return scale(Eigen::Vector3d(x == 0 ? 1 : x, y == 0 ? 1 : y, z == 0 ? 1 : z));
-    }
-
-    /*
-    //! Point-toward
-    static Eigen::Affine3d
-    point_toward(const Eigen::Vector3d &p_b, const Eigen::Vector3d &p_r, const Eigen::Vector3d &t_b,
-                 const Eigen::Vector3d &t_r) {
-
-    }
-
-    //! Location-look_at
-    static Eigen::Affine3d location_lookat(const Eigen::Vector3d &location, const Eigen::Vector3d &look_at,
-                                           const Eigen::Vector3d &sky = Eigen::Vector3d(0, 0, 1)) {
-      //Eigen::Affine3d result=point_toward(Eigen)
-    }
+    /**Create a POV-Ray like translation operation and add it to the list. This is in the physical sense -- an
+     *  object which was at the origin will be at point after this operation
+     *
+     * @param[in] x x-coordinate to move to
+     * @param[in] y y-coordinate to move to
+     * @param[in] z z-coordinate to move to
+     * @return pointer to the transformation
      */
+    std::shared_ptr<Translation> translate(double x, double y, double z) {
+      return translate(Position(x, y, z));
+    }
+
+    /**Create a POV-Ray like rotation operation around the X axis and add it to the list.
+     *
+     * @param angle rotation in degrees
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<RotateX> rotateX(double angle) {
+      auto result=std::make_shared<RotateX>(deg2rad(angle));
+      addTransform(result);
+      return result;
+    }
+
+    /**Create a POV-Ray like rotation operation around the Y axis and add it to the list.
+     *
+     * @param angle rotation in degrees
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<RotateY> rotateY(double angle) {
+      auto result=std::make_shared<RotateY>(deg2rad(angle));
+      addTransform(result);
+      return result;
+    }
+
+    /**Create a POV-Ray like rotation operation around the Z axis and add it to the list.
+     *
+     * @param angle rotation in degrees
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<RotateZ> rotateZ(double angle) {
+      std::shared_ptr<RotateZ> result=std::make_shared<RotateZ>(deg2rad(angle));
+      addTransform(result);
+      return result;
+    }
+
+
+    /** Create a POV-Ray like scaling operation and add it to the list. This simultaneously
+     * scales the object in the x, y, and z directions
+     * @param x Scale factor along X axis
+     * @param y Scale factor along Y axis
+     * @param z Scale factor along Z axis
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<Scaling> scale(double x, double y, double z) {
+      auto result=std::make_shared<Scaling>(x,y,z);
+      addTransform(result);
+      return result;
+    }
+
+    /** Create a POV-Ray like scaling operation and add it to the list. This simultaneously
+     * scales the object in the x, y, and z directions
+     * @param x Scale factor along X axis
+     * @param y Scale factor along Y axis
+     * @param z Scale factor along Z axis
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<UniformScaling> scale(double s) {
+      auto result=std::make_shared<UniformScaling>(s);
+      addTransform(result);
+      return result;
+    }
+
+    /** Create a POV-Ray like scaling operation and add it to the list. This simultaneously
+     * scales the object in the x, y, and z directions
+     * @param scaleFactor Scale factor
+     * @return pointer to the transformation
+     */
+    std::shared_ptr<Scaling> scale(Eigen::Vector3d amount) {
+      auto result=std::make_shared<Scaling>(amount);
+      addTransform(result);
+      return result;
+    }
+
   };
 }
 

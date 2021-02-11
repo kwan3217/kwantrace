@@ -18,7 +18,7 @@ namespace kwantrace {
    */
   class Renderable:public Transformable {
   protected:
-    std::shared_ptr<ColorField> pigment;
+    std::shared_ptr<ColorField> pigment; ///< Pointer to pigment for this object, or nullptr if there isn't one
     Observer<Renderable> parent=nullptr; ///< Used to find parent object to inherit default properties from
   public:
     virtual void setParent(Observer<Renderable> Lparent) {parent=Lparent;}
@@ -43,12 +43,11 @@ namespace kwantrace {
         return false;
       }
     }
-    virtual std::shared_ptr<Eigen::Affine3d> addTransform(std::shared_ptr<Eigen::Affine3d> transform) override {
-      std::shared_ptr<Eigen::Affine3d> result=Transformable::addTransform(transform);
+    virtual void addTransform(std::shared_ptr<Transformation> transform) override {
+      Transformable::addTransform(transform);
       if(pigment) {
         pigment->addTransform(transform);
       }
-      return result;
     }
     /**Prepare an object for rendering. This must be called
      * between any change to the object and rendering the object
@@ -68,6 +67,39 @@ namespace kwantrace {
   class Primitive:public Renderable {
   private:
     /** Intersect a ray with this object, in object local space.
+     *
+     * Any ray has the form \f$\vec{r}(t)=\vec{r}_0+\vec{v}t\f$. Broken down into
+     * components, it becomes:
+     *
+     *    * \f$x(t)=x_0+v_xt\f$
+     *    * \f$y(t)=y_0+v_yt\f$
+     *    * \f$z(t)=z_0+v_zt\f$
+     *
+     * Any surface whatsoever, no matter how twisted, can be defined in the form
+     * \f$f(\vec{r})=f_x(x)+f_y(y)+f_z(z)=0\f$.
+     *
+     * Note that each of these \f$f\f$ functions are scalar -- their domains are
+     * the real numbers, and their ranges are subsets of the real numbers.
+     *
+     * Now we use the ray formulas to find each coordinate as a function of \f$t\f$,
+     * and plug that into our equation and get:
+     *
+     *    * \f$f_x(x_0+v_xt)+f_y(y_0+v_yt)+f(z_0+v_zt)=0\f$
+     *
+     * which is a single scalar equation with a single unknown. All parameter values \f$t\f$
+     * which satisfy this equation represent intersections between the surface and the ray.
+     * It might be complicated -- it might even be impossible to solve in closed form. But,
+     * by hook or by crook, we are going to find those values such that \f$f(\vec{r}+\vec{v}t)=0\f$
+     *
+     * Roots can be positive, negative, or zero. If they are negative, that means that they
+     * occur on the half of the ray which doesn't really exist. You can think of it as
+     * behind the camera or whatever. If \f$t=0\f$, we once again have the literally infinitesimal
+     * case of the plane passing exactly through the ray initial point, IE through the camera pinhole.
+     *
+     * So, if there is one or more intersection, return the one with the smallest positive \f$t\f$.
+     *
+     * If there are no intersections, or if all intersections have negative \f$t\f$, return false.
+     *
      * @param[in]  rayLocal ray in local object space
      * @param[out] t        Position of intersection
      * @return              True if object is intersected by this ray. Output parameter r is unspecified if function returns false

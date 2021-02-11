@@ -14,6 +14,7 @@
 
 //KwanTrace library, ordered from lower-level to higher-level.
 #include "common.h"
+#include "Transformation.h"
 #include "Ray.h"
 #include "Renderable.h"
 #include "Composite.h"
