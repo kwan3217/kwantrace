@@ -87,7 +87,7 @@ namespace kwantrace {
     }
   public:
     std::shared_ptr<Renderable> addObject(std::shared_ptr<Renderable> object) {
-      return objects.addChild(object);
+      return objects.addObject(object);
     }
     std::shared_ptr<Light> addLight(std::shared_ptr<Light> light) {
       lightList.push_back(light);

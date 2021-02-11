@@ -8,7 +8,7 @@
 namespace kwantrace {
   class Composite : public Renderable {
   protected:
-    RenderableList children;
+    RenderableList children; ///< List of child objects
   public:
     virtual void prepareRender() override {
       Renderable::prepareRender();
@@ -18,17 +18,16 @@ namespace kwantrace {
       }
     }
 
-    std::shared_ptr<Renderable> addChild(std::shared_ptr<Renderable> child) {
+    std::shared_ptr<Renderable> addObject(std::shared_ptr<Renderable> child) {
       children.push_back(child);
       return child;
     }
 
-    virtual std::shared_ptr<Eigen::Affine3d> addTransform(std::shared_ptr<Eigen::Affine3d> transform) override {
-      std::shared_ptr<Eigen::Affine3d> result = addTransform(transform);
+    virtual void addTransform(std::shared_ptr<Transformation> transform) override {
+      Transformable::addTransform(transform);
       for (auto &&child:children) {
         child->addTransform(transform);
       }
-      return result;
     }
   };
 
