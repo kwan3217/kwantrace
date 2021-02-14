@@ -1,6 +1,20 @@
-//
-// Created by jeppesen on 2/10/21.
-//
+/* KwanTrace - C++ Ray Tracing Library
+Copyright (C) 2021 by kwan3217
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 #ifndef KWANTRACE_TRANSFORMATION_H
 #define KWANTRACE_TRANSFORMATION_H
@@ -22,36 +36,56 @@ namespace kwantrace {
  */
   class Transformation {
   public:
+    /** Construct the matrix for this transformation. This can
+     * read any of the parameters in the class.
+     * @return Matrix representing the transformation
+     */
     virtual Eigen::Matrix4d matrix() const = 0;
+    virtual ~Transformation()=default; ///<Allow there to be subclasses
   };
 
+  /** Transformation with a scalar parameter */
   class ScalarTransformation:public Transformation {
   private:
-    double _amount;
+    double _amount; ///< Parameter value.
   public:
+    /** Construct a new transformation with a scalar parameter.
+     *
+     * @param Lamount Initial parameter value
+     */
     ScalarTransformation(double Lamount=0):_amount(Lamount) {};
-    double get() const {return _amount;}
-    void set(double Lamount) {_amount=Lamount;}
-    double getd() const {return rad2deg(_amount);}
-    void setd(double Lamount) {_amount=deg2rad(Lamount);}
+    double get() const {return _amount;}                  ///< Get the parameter. @return Parameter value
+    void set(double Lamount) {_amount=Lamount;}           ///< Set the parameter. @param[in] Lamount new parameter value
   };
 
+  /** Transformation with a vector parameter. */
   class VectorTransformation:public Transformation {
   private:
-    Eigen::Vector3d _amount;
+    Eigen::Vector3d _amount; ///< Vector parameter for transform
   public:
+    /**
+     * Initialize a vector transformation.
+     * @param Lamount Initial value for vector transform parameter
+     */
     VectorTransformation(const Eigen::Vector3d Lamount=Eigen::Vector3d::Zero()):_amount(Lamount) {};
+    /**
+     * Initialize a vector transformation.
+     * @param x Initial X component
+     * @param y Initial Y component
+     * @param z Initial Z component
+     */
     VectorTransformation(double x, double y, double z):_amount(x,y,z) {};
-    double getX() const {return _amount.x();}
-      void setX(double Lx) {_amount.x()=Lx;}
-    double getY() const {return _amount.y();}
-      void setY(double Ly) {_amount.y()=Ly;}
-    double getZ() const {return _amount.z();}
-      void setZ(double Lz) {_amount.z()=Lz;}
-    Eigen::Vector3d getV() const {return _amount;}
-               void setV(const Eigen::Vector3d Lamount) {_amount=Lamount;}
+    double getX() const {return _amount.x();} ///< Get the X component of the parameter @return value of X component
+      void setX(double Lx) {_amount.x()=Lx;}  ///< Set the X component of the parameter @param[in] Lx value of X component
+    double getY() const {return _amount.y();} ///< Get the Y component of the parameter @return value of Y component
+      void setY(double Ly) {_amount.y()=Ly;}  ///< Set the Y component of the parameter @param[in] Ly value of Y component
+    double getZ() const {return _amount.z();} ///< Get the Z component of the parameter @return value of Z component
+      void setZ(double Lz) {_amount.z()=Lz;}  ///< Set the Z component of the parameter @param[in] Lz value of Z component
+    Eigen::Vector3d getV() const {return _amount;} ///< Get a copy of the parameter @return copy of the parameter
+               void setV(const Eigen::Vector3d Lamount) {_amount=Lamount;} ///< Set the parameter @param[in] Lamount New value of the parameter
   };
 
+  /** Represent a translation. The vector represents the coordinates of origin of the body frame, in the world frame. */
   class Translation:public VectorTransformation {
   public:
     using VectorTransformation::VectorTransformation;
@@ -64,6 +98,14 @@ namespace kwantrace {
     }
   };
 
+  /** Represent a non-uniform scaling, IE one that can be different along the three body axes.
+   * The vector represents the stretch factor in each direction. Since Bad Things happen if
+   * you specify a scale of zero (matrices are no longer full-rank and therefore no longer
+   * invertible) we adopt the POV-Ray convention and interpret requests to scale as zero to
+   * be requests to scale as 1. In this code, we do the substitution silently, unlike in
+   * POV-Ray where you get a warning if you do that.
+   *
+   */
   class Scaling:public VectorTransformation {
   public:
     using VectorTransformation::VectorTransformation;
@@ -76,6 +118,9 @@ namespace kwantrace {
     }
   };
 
+  /** Represent a uniform scaling in all directions. You could use
+   * a vector Scaling, but then you would have to change all three
+   * components of the scaling vector to keep the scaling uniform. */
   class UniformScaling:public ScalarTransformation {
   public:
     using ScalarTransformation::ScalarTransformation;
@@ -87,137 +132,212 @@ namespace kwantrace {
       return result;
     }
   };
+  /** Calculate the rotation matrix around a body axis
+   *
+   * @param axis Axis index, x=0, y=1, z=2
+   * @param angle Angle to rotate in radians
+   * @return Rotation matrix representing a physical rotation of an object about an axis by the given angle in a right-handed sense.
+   */
+  Eigen::Matrix4d rot(int axis, double angle) {
+    Eigen::Matrix4d result=Eigen::Matrix4d::Identity();
+    double c = cos(angle);
+    double s = sin(angle);
+    result((axis+1)%3, (axis+1)%3)= c; result((axis+1)%3, (axis+2)%3)= -s;
+    result((axis+2)%3, (axis+1)%3)= s; result((axis+2)%3, (axis+2)%3)=  c;
+    return result;
+  }
 
-  template<int i1, int i2>
+  /** Represents a right-handed physical rotation around a coordinate frame axis.
+   * Right-handed means if you wrap the fingers of your *right* hand around the
+   * rotation axis, with your thumb pointed in the positive direction of the axis,
+   * your fingers will wrap around the axis in the positive sense.
+   *
+   * \image html Right-hand_grip_rule.png
+   *
+   * For instance, if an object is pointed down the x axis and you rotate it +90&deg;
+   * around the z axis, the object will then be pointed down the y axis.
+   *
+   * @tparam axis Axis to rotate around -- x=0, y=1, z=2
+   */
+  template<int axis>
   class RotateScalar:public ScalarTransformation {
   public:
     using ScalarTransformation::ScalarTransformation;
-    /** \include Transformation::matrix()
+    /** Construct a rotation, optionally specifying the angle in degrees
      *
+     * @param Lamount Angle to rotate
+     * @param isDegrees If true, Lamount is specified in degrees. Otherwise it is specified in radians.
      */
+    RotateScalar(double Lamount, bool isDegrees):ScalarTransformation(isDegrees?deg2rad(Lamount):Lamount) {};
     virtual Eigen::Matrix4d matrix() const override {
-      Eigen::Matrix4d result=Eigen::Matrix4d::Identity();
-      double c = cos(get());
-      double s = sin(get());
-      result(i1, i1)= c; result(i1, i2)= -s;
-      result(i2, i1)= s; result(i2, i2)=  c;
+      return rot(axis,get());
+    }
+    double getd() const {return rad2deg(get());}        ///< Get the parameter, assuming it is an angle. @return Parameter angle in degrees
+    void setd(double Lamount) {set(deg2rad(Lamount));} ///< Set the parameter, assuming it is an angle. @param[in] Lamount new parameter angle in degrees
+  };
+  typedef RotateScalar<0> RotateX;  ///< Specialized RotateScalar for X axis
+  typedef RotateScalar<1> RotateY;  ///< Specialized RotateScalar for Y axis
+  typedef RotateScalar<2> RotateZ;  ///< Specialized RotateScalar for Z axis
+
+  /** Represents a right-handed physical rotation around each coordinate frame axis in turn.
+   * This is in a sense an Euler angle rotation, but in a rather inflexible way -- if you
+   * want a Euler angle rotation, chain together three RotateScalar objects around the axes
+   * you want in the order you want.
+   *
+   * This represents a rotation around the x axis by the amount specified by the x component
+   * of the parameter, followed by a rotation around the y axis as specified by the y
+   * component of the parameter, followed by the same for z. The order is not flexible.
+   *
+   * This emulates a POV-Ray rotate with a vector parameter (except for being right-handed rotations).
+   */
+  class RotateVector:public VectorTransformation {
+  public:
+    using VectorTransformation::VectorTransformation;
+    /** Construct a RotateVector, optionally specifying the angles in degrees */
+    RotateVector(
+      double Lx, ///< Amount to rotate around X axis
+      double Ly, ///< Amount to rotate around Y axis
+      double Lz, ///< Amount to rotate around Z axis
+      bool isDegrees  ///< True if Lx, Ly, and Lz are specified in degrees
+    ):VectorTransformation(
+      isDegrees?deg2rad(Lx):Lx,
+      isDegrees?deg2rad(Ly):Ly,
+      isDegrees?deg2rad(Lz):Lz) {
+    };
+    /** Construct a RotateVector, optionally specifying the angles in degrees */
+    RotateVector(
+      const Eigen::Vector3d Lamount, ///< Amount to rotate around each axis
+      bool isDegrees                 ///< True if components of Lamount are in degrees
+    ):VectorTransformation(
+      isDegrees?deg2rad(Lamount.x()):Lamount.x(),
+      isDegrees?deg2rad(Lamount.y()):Lamount.y(),
+      isDegrees?deg2rad(Lamount.z()):Lamount.z()) {
+    };
+    virtual Eigen::Matrix4d matrix() const override {
+      Eigen::Matrix4d result=rot(0,getX());
+      result=rot(1,getY())*result;
+      result=rot(2,getZ())*result;
       return result;
     }
+    double getXd() const {return rad2deg(getX());} ///< Get the X component of the rotation in degrees @return value of X component
+    void setXd(double Lx) {setX(deg2rad(Lx));}  ///< Set the X component of the rotation in degrees @param[in] Lx value of X component
+    double getYd() const {return rad2deg(getY());} ///< Get the Y component of the rotation in degrees @return value of Y component
+    void setYd(double Ly) {setX(deg2rad(Ly));}  ///< Set the Y component of the rotation in degrees @param[in] Ly value of Y component
+    double getZd() const {return rad2deg(getZ());} ///< Get the Z component of the rotation in degrees @return value of Z component
+    void setZd(double Lz) {setZ(deg2rad(Lz));}  ///< Set the Z component of the rotation in degrees @param[in] Lz value of Z component
+    Eigen::Vector3d getVd() const {return Eigen::Vector3d(getXd(),getYd(),getZd());} ///< Get the rotation in degrees @return copy of rotation vector converted to degrees
+    void setVd(const Eigen::Vector3d Lamount) {setXd(Lamount.x());setYd(Lamount.y());setZd(Lamount.z());} ///< Set the parameter @param[in] Lamount New value of the parameter in degrees
   };
-  typedef RotateScalar<1,2> RotateX;
-  typedef RotateScalar<2,0> RotateY;
-  typedef RotateScalar<0,1> RotateZ;
 
   /** Represent the Point-Toward transformation. This rotates an object such that
    * p_b in the body frame points at p_r in the world frame, and t_b in the body frame is towards
    * t_r in the world frame.
    *
-   * ## Problem Statement
-   * \f$
-   *    \def\M#1{{[\mathbf{#1}]}}
-   *    \def\MM#1#2{{[\mathbf{#1}{#2}]}}
-   *    \def\T{^\mathsf{T}}
-   *    \def\operatorname#1{{\mbox{#1}}}
-   * \f$
-   * Given a rigid body with vectors from its origin to direction (normalized vector)
-   * \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$ in the body frame, and an external frame
-   * centered on the same origin with directions \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$,
-   * find the physical rotation that points \f$\hat{p}_b\f$ and \f$\hat{p}_r\f$
-   * at the same direction, while simultaneously pointing \f$\hat{t}_b\f$ as close as
-   * possible to \f$\hat{t}_r\f$.
    *
-   * ### Example
-   * The Space Shuttle has a thrust vector which is not parallel to any of the body axes.
-   * We wish to point the thrust vector in the correct direction in the reference system,
-   * while simultaneously flying heads-down, which is equivalent to pointing the tail
-   * towards the ground. In this case, \f$\hat{p}_b\f$ is the thrust vector in the body
-   * frame, \f$\hat{p}_r\f$ is the guidance-calculated thrust vector in the reference
-   * frame, \f$\hat{t}_b\f$ is the body axis which points heads-up, say \f$\hat{z}_b\f$,
-   * and \f$\hat{t}_r\f$ is the vector from the spacecraft location towards the center
-   * of the Earth.
-   *
-   * \image html 320px-Point_constraint.svg.png
-   *
-   * \image html 320px-Toward_constraint.svg.png
-   *
-   * ## Solution
-   * We are going to do this with matrices. The solution matrix is going to be called
-   * \f$\MM{M}{_{b2r}}\f$ and will transform *from* the body frame *to* the reference frame.
-   *
-   * First, it is obviously impossible to in general satisfy both the "point" constraint
-   * \f$\hat{p}_r=\MM{M}{_{b2r}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{b2r}}\hat{t}_b\f$.
-   * Satisfying both is possible if and only if the angle between \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$
-   * is the same as the angle between \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$. When these
-   * angles do not match, the point constraint will be perfectly satisfied, and the
-   * angle between the body and reference toward vectors will be as small as possible.
-   * Using geometric intuition, it is obvious but not proven here that the angle is
-   * minimum when the point vector, transformed body toward vector, and reference toward
-   * vector are all in the same plane. This means that we can create a third vector
-   * \f$\hat{s}=\operatorname{normalize}(\hat{p} \times \hat{t})\f$. This vector is
-   * normal to the plane containing point and toward in both frames, so when the plane
-   * is the same, these vectors match. Therefore we have another constraint which can
-   * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{b2r}}\hat{s}_b\f$.
-   * So, we have:
-   *
-   * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{b2r}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
-   *
-   * This isn't quite enough data, it works out to nine unknowns and six equations.
-   * We can add one more constraint by considering the vector \f$\hat{u}\f$ perpendicular
-   * to both \f$\hat{p}\f$ and \f$\hat{s}\f$:
-   *
-   * \f$\hat{u}=\hat{p} \times \hat{s}\f$
-   *
-   * We already know that this will be unit length since \f$\hat{p}\f$ and \f$\hat{s}\f$
-   * are already perpendicular. Since these three vectors are perpendicular in both frames,
-   * only an orthogonal matrix can transform all three vectors and maintain the angles
-   * between them, so this third vector is equivalent to adding an orthogonality constraint.
-   *
-   * \f$\M{R}=\begin{bmatrix}\hat{p}_r && \hat{s}_r\ && \hat{u}_r \end{bmatrix}\f$
-   *
-   * (treating the vectors as column vectors)
-   *
-   * \f$\begin{eqnarray*}
-   *    \M{B}&=&\begin{bmatrix}\hat{p}_b && \hat{s}_b\ && \hat{u}_b \end{bmatrix} \\
-   *    \M{R}&=&\MM{M}{_{b2r}}\M{B} \\
-   *    \M{R}\M{B}^{-1}&=&\MM{M}{_{b2r}}\end{eqnarray*}\f$
-   *
-   *The above calls for a matrix inverse, but who has time for that? Since all the columns of
-   * \f$\M{B}\f$ (and \f$\M{R}\f$ for that matter) are unit length and perpendicular to each
-   * other, the matrix is orthogonal, which means that its inverse is its transpose.
-   *
-   * \f$\M{R}\M{B}^T=\MM{M}{_{b2r}}\f$
-   *
-   * And that's the solution. Note that if you need \f$\MM{M}{_{r2b}}\f$, it is also a transpose
-   * since this answer is still an orthonormal (IE rotation) matrix.
-   *
-   * @param p_b
-   * @param p_r point vector in world frame
-   * @param t_b toward vector in body frame
-   * @param t_r toward vector in world frame
-   * @return Rotation matrix which physically rotates the object such that it points toward
-   * the indicated vectors. This is \f$\MM{M}{_{b2r}}\f$ above.
-   *
-   * None of the inputs require normalization. This is all done internally.
    */
   class PointToward:public Transformation {
   private:
-    Eigen::Vector3d p_b, p_r, t_b, t_r;
+    Eigen::Vector3d p_b; ///< Point vector in body frame
+    Eigen::Vector3d p_r; ///< Point vector in world frame
+    Eigen::Vector3d t_b; ///< Toward vector in body frame
+    Eigen::Vector3d t_r; ///< Toward vector in world frame
   public:
+    /** Construct a Point-Toward transformation */
     PointToward(
             const Eigen::Vector3d &Lp_b, ///< point vector in body frame
             const Eigen::Vector3d &Lp_r, ///< point vector in world frame
             const Eigen::Vector3d &Lt_b, ///< toward vector in body frame
             const Eigen::Vector3d &Lt_r  ///< toward vector in world frame
     ) : p_b(Lp_b), p_r(Lp_r), t_b(Lt_b), t_r(Lt_r) {}
-    Eigen::Vector3d getPb() const                     {return p_b;}
-               void setPb(const Eigen::Vector3d& Lpb) {p_b=Lpb;}
-    Eigen::Vector3d getPr() const                     {return p_r;}
-               void setPr(const Eigen::Vector3d& Lpr) {p_b=Lpr;}
-    Eigen::Vector3d getTb() const                     {return t_b;}
-               void setTb(const Eigen::Vector3d& Ltb) {p_b=Ltb;}
-    Eigen::Vector3d getTr() const                     {return t_r;}
-               void setTr(const Eigen::Vector3d& Ltr) {p_b=Ltr;}
+    Eigen::Vector3d getPb() const                     {return p_b;} ///<Get copy of p_b vector @return copy of p_b vector
+               void setPb(const Eigen::Vector3d& Lpb) {p_b=Lpb;}    ///<Set p_b vector @param[in] Lpb New p_b vector
+    Eigen::Vector3d getPr() const                     {return p_r;} ///<Get copy of p_b vector @return copy of p_r vector
+               void setPr(const Eigen::Vector3d& Lpr) {p_b=Lpr;}    ///<Set p_b vector @param[in] Lpr New p_r vector
+    Eigen::Vector3d getTb() const                     {return t_b;} ///<Get copy of t_b vector @return copy of t_b vector
+               void setTb(const Eigen::Vector3d& Ltb) {p_b=Ltb;}    ///<Set t_b vector @param[in] Ltb New t_b vector
+    Eigen::Vector3d getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
+               void setTr(const Eigen::Vector3d& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
 
+    /** Calculate the matrix representing this Point-Toward transformation.
+     * ## Problem Statement
+     * \f$
+     *    \def\M#1{{[\mathbf{#1}]}}
+     *    \def\MM#1#2{{[\mathbf{#1}{#2}]}}
+     *    \def\T{^\mathsf{T}}
+     *    \def\operatorname#1{{\mbox{#1}}}
+     * \f$
+     * Given a rigid body with vectors from its origin to direction (normalized vector)
+     * \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$ in the body frame, and an external frame
+     * centered on the same origin with directions \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$,
+     * find the physical rotation that points \f$\hat{p}_b\f$ and \f$\hat{p}_r\f$
+     * at the same direction, while simultaneously pointing \f$\hat{t}_b\f$ as close as
+     * possible to \f$\hat{t}_r\f$.
+     *
+     * ### Example
+     * The Space Shuttle has a thrust vector which is not parallel to any of the body axes.
+     * We wish to point the thrust vector in the correct direction in the reference system,
+     * while simultaneously flying heads-down, which is equivalent to pointing the tail
+     * towards the ground. In this case, \f$\hat{p}_b\f$ is the thrust vector in the body
+     * frame, \f$\hat{p}_r\f$ is the guidance-calculated thrust vector in the reference
+     * frame, \f$\hat{t}_b\f$ is the body axis which points heads-up, say \f$\hat{z}_b\f$,
+     * and \f$\hat{t}_r\f$ is the vector from the spacecraft location towards the center
+     * of the Earth.
+     *
+     * \image html 320px-Point_constraint.svg.png
+     *
+     * \image html 320px-Toward_constraint.svg.png
+     *
+     * ## Solution
+     * We are going to do this with matrices. The solution matrix is going to be called
+     * \f$\MM{M}{_{b2r}}\f$ and will transform *from* the body frame *to* the reference frame.
+     *
+     * First, it is obviously impossible to in general satisfy both the "point" constraint
+     * \f$\hat{p}_r=\MM{M}{_{b2r}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{b2r}}\hat{t}_b\f$.
+     * Satisfying both is possible if and only if the angle between \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$
+     * is the same as the angle between \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$. When these
+     * angles do not match, the point constraint will be perfectly satisfied, and the
+     * angle between the body and reference toward vectors will be as small as possible.
+     * Using geometric intuition, it is obvious but not proven here that the angle is
+     * minimum when the point vector, transformed body toward vector, and reference toward
+     * vector are all in the same plane. This means that we can create a third vector
+     * \f$\hat{s}=\operatorname{normalize}(\hat{p} \times \hat{t})\f$. This vector is
+     * normal to the plane containing point and toward in both frames, so when the plane
+     * is the same, these vectors match. Therefore we have another constraint which can
+     * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{b2r}}\hat{s}_b\f$.
+     * So, we have:
+     *
+     * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{b2r}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
+     *
+     * This isn't quite enough data, it works out to nine unknowns and six equations.
+     * We can add one more constraint by considering the vector \f$\hat{u}\f$ perpendicular
+     * to both \f$\hat{p}\f$ and \f$\hat{s}\f$:
+     *
+     * \f$\hat{u}=\hat{p} \times \hat{s}\f$
+     *
+     * We already know that this will be unit length since \f$\hat{p}\f$ and \f$\hat{s}\f$
+     * are already perpendicular. Since these three vectors are perpendicular in both frames,
+     * only an orthogonal matrix can transform all three vectors and maintain the angles
+     * between them, so this third vector is equivalent to adding an orthogonality constraint.
+     *
+     * \f$\M{R}=\begin{bmatrix}\hat{p}_r && \hat{s}_r\ && \hat{u}_r \end{bmatrix}\f$
+     *
+     * (treating the vectors as column vectors)
+     *
+     * \f$\begin{eqnarray*}
+     *    \M{B}&=&\begin{bmatrix}\hat{p}_b && \hat{s}_b\ && \hat{u}_b \end{bmatrix} \\
+     *    \M{R}&=&\MM{M}{_{b2r}}\M{B} \\
+     *    \M{R}\M{B}^{-1}&=&\MM{M}{_{b2r}}\end{eqnarray*}\f$
+     *
+     *The above calls for a matrix inverse, but who has time for that? Since all the columns of
+     * \f$\M{B}\f$ (and \f$\M{R}\f$ for that matter) are unit length and perpendicular to each
+     * other, the matrix is orthogonal, which means that its inverse is its transpose.
+     *
+     * \f$\M{R}\M{B}^T=\MM{M}{_{b2r}}\f$
+     *
+     * And that's the solution. Note that if you need \f$\MM{M}{_{r2b}}\f$, it is also a transpose
+     * since this answer is still an orthonormal (IE rotation) matrix.
+     * @return Matrix representing the point-toward transformation.
+     */
     virtual Eigen::Matrix4d matrix() const override {
       Eigen::Matrix3d R, B;
       Direction s_r = (p_r.cross(t_r)).normalized();
@@ -234,6 +354,12 @@ namespace kwantrace {
 
   /** Exercise pointToward().
    * \image html Space_Shuttle_Coordinate_System.jpg
+   * \f$
+   *    \def\M#1{{[\mathbf{#1}]}}
+   *    \def\MM#1#2{{[\mathbf{#1}{#2}]}}
+   *    \def\T{^\mathsf{T}}
+   *    \def\operatorname#1{{\mbox{#1}}}
+   * \f$
    *
    * The space shuttle has a thrust axis 13&deg; below the X axis, so:
    * \f$\hat{p}_b=\begin{bmatrix}\cos 13^\circ \\ 0 \\ -\sin 13^\circ \end{bmatrix}
@@ -264,7 +390,7 @@ namespace kwantrace {
    *                                                                                   -0.974370 \end{bmatrix}\f$
    *\f$\hat{s}_r=\operatorname{normalize}(\hat{p}_r \times \hat{t}_r)=\begin{bmatrix} -0.173648 \\
    *                                                                                   0.984808 \\
-   *                                                                                   0.000000 \end{bmatrix}f$
+   *                                                                                   0.000000 \end{bmatrix}\f$
    *
    *\f$\hat{u}_r=\operatorname{normalize}(\hat{p}_r \times \hat{s}_r)=\begin{bmatrix} -0.492404 \\
    *                                                                                  -0.086824 \\
@@ -290,7 +416,7 @@ namespace kwantrace {
    *
    * That's a decisive yes.
    */
-  static void exercise_pointToward() {
+  static void exercisePointToward() {
     Direction p_b(cosd(13),
                   0,
                   -sind(13));

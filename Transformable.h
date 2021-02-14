@@ -1,6 +1,20 @@
-//
-// Created by jeppesen on 2/3/21.
-//
+/* KwanTrace - C++ Ray Tracing Library
+Copyright (C) 2021 by kwan3217
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 #ifndef KWANTRACE_TRANSFORMABLE_H
 #define KWANTRACE_TRANSFORMABLE_H
@@ -56,7 +70,7 @@ namespace kwantrace {
     Eigen::Matrix4d Mb2w; ///< Body-to-world transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
     Eigen::Matrix4d Mw2b; ///< World-to-body transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
     Eigen::Matrix4d Mb2wN;///< Body-to-world transformation matrix for surface normals, only valid between a call to prepareRender and any changes to any transforms in the list
-
+    virtual ~Transformable()=default; ///< Allow there to be subclasses
     /** Prepare for rendering
      *
      * \internal This is done by calling combine() to combine all of the transformations, and
@@ -74,7 +88,7 @@ namespace kwantrace {
      * @return a pointer to this transformation. The transformation may be modified through this pointer, but prepareRender()
      *   must be called in order to make the changes active.
      */
-    virtual void addTransform(std::shared_ptr<Transformation> transform) {
+    virtual void add(std::shared_ptr<Transformation> transform) {
       transformList.push_back(transform);
     }
     /**Create a POV-Ray like translation operation and add it to the list. This is in the physical sense -- an
@@ -86,7 +100,7 @@ namespace kwantrace {
      */
     std::shared_ptr<Translation> translate(Position point) {
       auto result=std::make_shared<Translation>(point);
-      addTransform(result);
+      add(result);
       return result;
     }
 
@@ -109,7 +123,7 @@ namespace kwantrace {
      */
     std::shared_ptr<RotateX> rotateX(double angle) {
       auto result=std::make_shared<RotateX>(deg2rad(angle));
-      addTransform(result);
+      add(result);
       return result;
     }
 
@@ -120,7 +134,7 @@ namespace kwantrace {
      */
     std::shared_ptr<RotateY> rotateY(double angle) {
       auto result=std::make_shared<RotateY>(deg2rad(angle));
-      addTransform(result);
+      add(result);
       return result;
     }
 
@@ -131,7 +145,7 @@ namespace kwantrace {
      */
     std::shared_ptr<RotateZ> rotateZ(double angle) {
       std::shared_ptr<RotateZ> result=std::make_shared<RotateZ>(deg2rad(angle));
-      addTransform(result);
+      add(result);
       return result;
     }
 
@@ -145,31 +159,29 @@ namespace kwantrace {
      */
     std::shared_ptr<Scaling> scale(double x, double y, double z) {
       auto result=std::make_shared<Scaling>(x,y,z);
-      addTransform(result);
+      add(result);
       return result;
     }
 
     /** Create a POV-Ray like scaling operation and add it to the list. This simultaneously
      * scales the object in the x, y, and z directions
-     * @param x Scale factor along X axis
-     * @param y Scale factor along Y axis
-     * @param z Scale factor along Z axis
+     * @param s Uniform scale factor
      * @return pointer to the transformation
      */
     std::shared_ptr<UniformScaling> scale(double s) {
       auto result=std::make_shared<UniformScaling>(s);
-      addTransform(result);
+      add(result);
       return result;
     }
 
     /** Create a POV-Ray like scaling operation and add it to the list. This simultaneously
      * scales the object in the x, y, and z directions
-     * @param scaleFactor Scale factor
+     * @param amount Scale factor
      * @return pointer to the transformation
      */
     std::shared_ptr<Scaling> scale(Eigen::Vector3d amount) {
       auto result=std::make_shared<Scaling>(amount);
-      addTransform(result);
+      add(result);
       return result;
     }
 
