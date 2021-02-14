@@ -1,20 +1,48 @@
-//
-// Created by jeppesen on 2/7/21.
-//
+/* KwanTrace - C++ Ray Tracing Library
+Copyright (C) 2021 by kwan3217
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
 
 #ifndef KWANTRACE_SCENE_H
 #define KWANTRACE_SCENE_H
 
 namespace kwantrace {
+  /** Pixel buffer
+   *
+   * @tparam pixdepth Number of color channels. Three is typical color, but I can imagine less for native
+   *                  grayscale or to try to get a performance improvement. I can also imagine more for
+   *                  simulating an imaging spectrometer.
+   * @tparam pixtype Type of one channel of one pixel
+   */
   template<int pixdepth=3, typename pixtype=uint8_t>
   class PixelBuffer {
   private:
-    int _width;
-    int _height;
-    std::unique_ptr<pixtype[]> _buf;
+    int _width;  ///< Width of pixel buffer in pixels
+    int _height; ///< Height of pixel buffer in pixels
+    std::unique_ptr<pixtype[]> _buf; ///< Actual pixel buffer -- allocated on construction, deallocated at destruction
   public:
+    /**Get width of pixel buffer.
+     * @return width of pixel buffer in pixels */
     int width() {return _width;};
+    /**Get height of pixel buffer.
+     * @return height of pixel buffer in pixels */
     int height() {return _height;};
+    /** Construct a pixel buffer with the given size
+     * @param Lwidth Width in pixels
+     * @param Lheight Height in pixels  */
     PixelBuffer(int Lwidth, int Lheight):_width(Lwidth),_height(Lheight) {
       _buf=std::make_unique<pixtype[]>(_width*_height*pixdepth);
     }
@@ -28,17 +56,33 @@ namespace kwantrace {
     pixtype& operator()(int col, int row, int channel) {
       return _buf[((row*_width)+col)*pixdepth+channel];
     }
-    auto get() {return _buf.get();}
+
+    Observer<pixtype> get() {return _buf.get();} ///< Get a pointer to the pixels @return pointer to the pixels
   };
 
+  /** Manager for the whole rendering process. Your code is responsible
+   * for loading the scene with objects, lights, a camera, etc. Once
+   * everything is in place, you call the Scene::render() method to
+   * actually do the rendering.
+   * @tparam pixdepth Number of color channels. Three is typical color, but I can imagine less for native
+   *                  grayscale or to try to get a performance improvement. I can also imagine more for
+   *                  simulating an imaging spectrometer.
+   * @tparam pixtype Type of one channel of one pixel
+   */
   template<int pixdepth=3, typename pixtype=uint8_t>
   class Scene {
   private:
-    Union objects;
-    LightList lightList;
-    std::shared_ptr<Shader> shader;
-    std::shared_ptr<Camera> camera;
-    /** Render a scene into a given pixelbuf
+    Union objects;          ///< All objects in the scene
+    LightList lightList;    ///< All lights in the scene
+    std::shared_ptr<Shader> shader; ///< Shader to use
+    std::shared_ptr<Camera> camera; ///< Camera to use
+    /** Render a scene into a given pixelbuf. This covers converting a pixel coordinate
+     * to a coordinate in the normalized image plane, then calls renderPixel to actually
+     * do the work.
+     *
+     * If you wanted to add multithreading, this is the place to do it. All methods
+     * are intended to be thread safe by only using const methods on the scene and
+     * its children once rendering has begun, and by only writing to the pixel buffer.
      *
      * @param[in] width Width of target image in pixels
      * @param[in] height Height of target object in pixels
@@ -51,7 +95,7 @@ namespace kwantrace {
       shader->prepareRender();
       camera->prepareRender();
       for (int row = 0; row < height; row++) {
-        double y = 0.5-(double(row) + 0.5) / height;
+        double y = (double(row) + 0.5) / height-0.5;
         for (int col = 0; col < width; col++) {
           double x = (double(col) + 0.5) / width - 0.5;
           renderPixel(x, y, col, row, pixbuf);
@@ -86,21 +130,45 @@ namespace kwantrace {
       }
     }
   public:
-    std::shared_ptr<Renderable> addObject(std::shared_ptr<Renderable> object) {
-      return objects.addObject(object);
+    /** Add an object to the scene. This just forwards the object to
+     * the underlying Union member field representing the scene.
+     * @param object Pointer to object to add
+     * @return Same pointer is passed back out
+     */
+    std::shared_ptr<Renderable> add(std::shared_ptr<Renderable> object) {
+      return objects.add(object);
     }
-    std::shared_ptr<Light> addLight(std::shared_ptr<Light> light) {
+    /** Add a light to the scene. This just forwards the object to
+     * the underlying light list member field.
+     * @param light Pointer to light to add
+     * @return Same pointer is passed back out
+     */
+    std::shared_ptr<Light> add(std::shared_ptr<Light> light) {
       lightList.push_back(light);
       return light;
     }
+    /** Set the scene camera.
+     * @param Lcamera Pointer to camera
+     * @return Same pointer is passed back out
+     */
     std::shared_ptr<Camera> set(std::shared_ptr<Camera> Lcamera) {
       camera=Lcamera;
       return camera;
     }
+    /** Set the scene shader.
+     * @param Lshader Pointer to shader
+     * @return Same pointer is passed back out
+     */
     std::shared_ptr<Shader> set(std::shared_ptr<Shader> Lshader) {
       shader=Lshader;
       return shader;
     }
+    /** Render the scene. This function creates a pixbuf of the appropriate size and
+     * delegates actual rendering to render(int,int,PixelBuffer)
+     * @param width Width of image in pixels
+     * @param height Height of image in pixels
+     * @return Pixel buffer
+     */
     PixelBuffer<pixdepth,pixtype> render(int width, int height) {
       auto pixbuf = PixelBuffer<pixdepth,pixtype>(width,height);
       render(width, height, pixbuf);
