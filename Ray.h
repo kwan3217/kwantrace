@@ -31,17 +31,25 @@ namespace kwantrace {
 
     /** Construct an array from the given initial position and direction
      *
-     * @param Lr0
-     * @param Lv
+     * @param Lr0 Initial point
+     * @param Lv direction
      */
     Ray(Position Lr0, Direction Lv) : r0(Lr0), v(Lv) {};
-
+    /** Construct a ray
+     *
+     * @param x0 initial x coordinate
+     * @param y0 initial y coordinate
+     * @param z0 initial z coordinate
+     * @param vx x direction
+     * @param vy y direction
+     * @param vz z direction
+     */
     Ray(double x0, double y0, double z0, double vx, double vy, double vz) : r0(Position(x0, y0, z0)),
                                                                             v(Direction(vx, vy, vz)) {}
 
     /** Construct a ray with a zero initial position and *nonzero* velocity \f$\hat{x}\f$.
      */
-    Ray() : r0(Position(0, 0, 0)), v(Direction(0, 0, 0)) {}
+    Ray() : r0(Position(0, 0, 0)), v(Direction(1, 0, 0)) {}
     /** Transform this ray with a matrix. The position and direction vectors have to be handled differently,
      * since the initial point is a position which participates in translation, while the direction does not.
      * This is handled by the differently-overloaded multiplication operator for each kind of vector.
