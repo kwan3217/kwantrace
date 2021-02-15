@@ -268,6 +268,9 @@ namespace kwantrace {
     Eigen::Vector3d getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
                void setTr(const Eigen::Vector3d& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
 
+    virtual Eigen::Matrix4d matrix() const override {
+      return calc(p_b, p_r, t_b, t_r);
+    }
     /** Calculate the matrix representing this Point-Toward transformation.
      * ## Problem Statement
      * \f$
@@ -348,10 +351,7 @@ namespace kwantrace {
      * since this answer is still an orthonormal (IE rotation) matrix.
      * @return Matrix representing the point-toward transformation.
      */
-    virtual Eigen::Matrix4d matrix() const override {
-      return calcPointToward(p_b, p_r, t_b, t_r);
-    }
-    static Eigen::Matrix4d calcPointToward(
+    static Eigen::Matrix4d calc(
       Direction p_b,
       Direction p_r,
       Direction t_b,
