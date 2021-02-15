@@ -89,12 +89,22 @@ namespace kwantrace {
   class Translation:public VectorTransformation {
   public:
     using VectorTransformation::VectorTransformation;
-    virtual Eigen::Matrix4d matrix() const override {
+    static Eigen::Matrix4d calc(Position v) {
       Eigen::Matrix4d result=Eigen::Matrix4d::Identity();
-      result(0,3)=getX();
-      result(1,3)=getY();
-      result(2,3)=getZ();
+      result(0,3)=v.x();
+      result(1,3)=v.y();
+      result(2,3)=v.z();
       return result;
+    }
+    static Eigen::Matrix4d calc(double x, double y, double z) {
+      Eigen::Matrix4d result=Eigen::Matrix4d::Identity();
+      result(0,3)=x;
+      result(1,3)=y;
+      result(2,3)=z;
+      return result;
+    }
+    virtual Eigen::Matrix4d matrix() const override {
+      return calc(getV());
     }
   };
 
