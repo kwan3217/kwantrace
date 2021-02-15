@@ -461,7 +461,7 @@ namespace kwantrace {
       std::cout << "B:  "<< std::endl << B << std::endl;
       Eigen::Matrix3d M_b2r_direct=R*B.transpose();
       std::cout << "M_b2r (direct):  "<< std::endl << M_b2r_direct << std::endl;
-      auto M_b2r=calcPointToward(p_b,p_r,t_b,t_r);
+      auto M_b2r= calc(p_b, p_r, t_b, t_r);
       std::cout << "M_b2r:  "<< std::endl << M_b2r << std::endl;
       std::cout << "M_b2r*p_b (should equal p_r):  "<< std::endl << M_b2r*p_b << std::endl;
       std::cout << "M_b2r*s_b (should equal s_r):  "<< std::endl << M_b2r*s_b << std::endl;
@@ -513,20 +513,19 @@ namespace kwantrace {
      * @param ground
      * @return Transformation matrix which does the job
      */
-    static Eigen::Matrix4d calcLocationLookat(
-      const Position &location,
-      const Position &look_at,
-      const Direction &p_b=Direction(0,0,1),
-      const Direction& t_b=Direction(0,1,0),
-      const Direction &t_r = Direction(0, 0, -1)
+    static Eigen::Matrix4d calc(
+      const Position& location,
+      const Position& look_at,
+      const Direction& p_b= Direction(0, 0, 1),
+      const Direction& t_b= Direction(0, 1, 0),
+      const Direction& t_r = Direction(0, 0, -1)
     ) {
-      Eigen::Matrix4d result;
-      result=PointToward(p_b,Direction(look_at-location),t_b,t_r).matrix()*result; //Use point-toward to point at the target
-      result=Translation(location).matrix()*result; //Translate back to location
+      Eigen::Matrix4d result= PointToward::calc(p_b, Direction(look_at - location), t_b, t_r); //Use point-toward to point at the target
+      result=Translation::calc(location)*result; //Translate back to location
       return result;
     }
     Eigen::Matrix4d matrix() const override {
-      return calcLocationLookat(location,look_at,p_b,t_b,t_r);
+      return calc(location, look_at, p_b, t_b, t_r);
     }
   };
 }
