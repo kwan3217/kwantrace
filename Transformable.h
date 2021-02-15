@@ -60,7 +60,7 @@ namespace kwantrace {
       for (auto&& trans:transformList) {
         result = trans->matrix() * result;
       }
-      return result.matrix();
+      return result;
     }
     /** List of pointers to physical transformations to be performed, in order. The transformations themselves
      * can be changed through their pointer, but prepareRender must be called to actually apply the transformation
