@@ -88,72 +88,34 @@ int main() {
 
   kwantrace::Scene<> scene;
   auto camera=scene.set(std::make_shared<kwantrace::PerspectiveCamera>(width,height));
-  camera->locationLookat(kwantrace::Position(-5,5,2),kwantrace::Position(5,0,2));
-  //camera->translate(0,0,2);
-  //camera->rotateX(-90);
+  camera->locationLookat(kwantrace::Position(0,0,0),kwantrace::Position(0,5,0));
 
   auto shader=scene.set(std::make_shared<kwantrace::POVRayShader>());
-  //auto sphere1=scene.add(std::make_shared<kwantrace::Sphere>());
-  //sphere1->translate(5,0,0);
-  //sphere1->setPigment(std::make_shared<kwantrace::ConstantColor>(1, 0, 0));
-
-  /*
-  auto sphere2=scene.addObject(std::make_shared<kwantrace::Sphere>());
-  sphere2->scale(0.5,0.5,1);
-  sphere2->translate(6,1.5,-0.5);
-  sphere2->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 1, 0));
-
-  auto sphere3=scene.add(std::make_shared<kwantrace::Sphere>());
-  sphere3->translate(5,0,2);
-  sphere3->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 0, 1));
-  */
   auto plane=scene.add(std::make_shared<Plane>());
   plane->translate(0,0,-1);
   plane->setPigment(std::make_shared<kwantrace::ConstantColor>(1, 1, 0));
 
-
-  auto groupX=std::make_shared<kwantrace::Union>();
-  auto groupY=std::make_shared<kwantrace::Union>();
-  auto groupZ=std::make_shared<kwantrace::Union>();
-  scene.add(groupX);
-  auto sphereX1= groupX->add(std::make_shared<kwantrace::Sphere>());
-  sphereX1->scale(0.5);
-  sphereX1->translate(0,0.5,0);
-  auto sphereX2= groupX->add(std::make_shared<kwantrace::Sphere>());
-  sphereX2->scale(0.25);
-  sphereX2->translate(0,-0.25,0);
-  auto sphereX3= groupX->add(std::make_shared<kwantrace::Sphere>());
-  sphereX3->scale(0.25);
-  sphereX3->translate(0,0.5,0.5);
-  groupX->setPigment(std::make_shared<kwantrace::ConstantColor>(1, 0, 0));
+  auto buildgroup=[](double r, double g, double b) {
+    auto group=std::make_shared<kwantrace::Union>();
+    auto sphere1= group->add(std::make_shared<kwantrace::Sphere>());
+    sphere1->scale(0.5);
+    sphere1->translate(0,0.5,0);
+    auto sphere2= group->add(std::make_shared<kwantrace::Sphere>());
+    sphere2->scale(0.25);
+    sphere2->translate(0,-0.25,0);
+    auto sphere3= group->add(std::make_shared<kwantrace::Sphere>());
+    sphere3->scale(0.25);
+    sphere3->translate(0,0.5,0.5);
+    group->setPigment(std::make_shared<kwantrace::ConstantColor>(r, g, b));
+    return group;
+  };
+  auto groupX=scene.add(buildgroup(1,0,0));
   auto groupXRotate=groupX->rotateX(0);
   groupX->translate(-2,5,0);
-
-  scene.add(groupY);
-  auto sphereY1= groupY->add(std::make_shared<kwantrace::Sphere>());
-  sphereY1->scale(0.5);
-  sphereY1->translate(0,0.5,0);
-  auto sphereY2= groupY->add(std::make_shared<kwantrace::Sphere>());
-  sphereY2->scale(0.25);
-  sphereY2->translate(0,-0.25,0);
-  auto sphereY3= groupY->add(std::make_shared<kwantrace::Sphere>());
-  sphereY3->scale(0.25);
-  sphereY3->translate(0,0.5,0.5);
-  groupY->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 1, 0));
+  auto groupY=scene.add(buildgroup(0,1,0));
   auto groupYRotate=groupY->rotateY(90);
   groupY->translate(0,5,0);
-
-  scene.add(groupZ);
-  auto sphereZ1= groupZ->add(std::make_shared<kwantrace::Sphere>());
-  sphereZ1->scale(0.5);
-  sphereZ1->translate(0,0.5,0);
-  auto sphereZ2= groupZ->add(std::make_shared<kwantrace::Sphere>());
-  sphereZ2->scale(0.25);
-  sphereZ2->translate(0,-0.25,0);
-  auto sphereZ3= groupZ->add(std::make_shared<kwantrace::Sphere>());
-  sphereZ3->scale(0.25);
-  sphereZ3->translate(0,0.5,0.5);
-  groupZ->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 0, 1));
+  auto groupZ=scene.add(buildgroup(0,0,1));
   auto groupZRotate=groupZ->rotateZ(90);
   groupZ->translate(2,5,0);
 
