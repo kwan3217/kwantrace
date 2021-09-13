@@ -207,7 +207,11 @@ namespace kwantrace {
      *
      * It is unspecified behavior to call this on a point which is not on the surface
      * of an object -- the function may return any value at all. That being said, it is
-     * better to be forgiving in the face of floating point limited precision.
+     * better to be forgiving in the face of floating point limited precision. In other
+     * words, it is recommended that if you are given a point which is *close* to a point
+     * on your surface, return a value which is *close* to the normal at the point on the
+     * surface. The exact definition of *close* is up to the implementation, and does
+     * not necessarily mean the normal of the clos*est* point.
      *
      * Don't worry about returning a unit-length normal, that is done upstream. You can't
      * even do it if you wanted to, since it needs to be unit-length in world coordinates.
