@@ -187,7 +187,17 @@ namespace kwantrace {
      *
      * @param[in]  rayLocal ray in local object space
      * @param[out] t        Position of intersection
-     * @return              True if object is intersected by this ray. Output parameter r is unspecified if function returns false
+     * @return              True if object is intersected by this ray. Output parameter t is unspecified if function returns false. 
+     *
+     * Note that if the return value is false, the output parameter `t` is unspecified. This means
+     * callers of this function are not allowed to make any use of the `t` parameter they get
+     * if the function returns false. The implementations of this function are allowed to 
+     * stick any value they want here, or not change the parameter at all (which means
+     * it will still have the same value as when it was passed in). The value may be NaN, infinity,
+     * or some finite value that *still* doesn't mean anything to any outside process. For instance,
+     * the implementation might do a partial computation, then hit a check that decides that
+     * the ray doesn't hit the primitive. The implementation is fully within its rights to
+     * leave the partial computation in `t`.
      */
     virtual bool intersectLocal(const Ray &rayLocal, double& t) const=0;
     /** Generate the normal vector to an object at a point.
