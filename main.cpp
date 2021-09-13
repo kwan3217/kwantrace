@@ -28,23 +28,19 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  */
 class Plane: public kwantrace::Primitive {
   /** Intersect a ray with the plane z=0.
-   * \copydoc kwantrace::Primitive::intersectLocal()
+   * \see kwantrace::Primitive::intersectLocal()
    *
    * For a plane, our surface equation is super-simple, just:
    *
-   *    * \f$f_x(x)=0\f$
-   *    * \f$f_y(y)=0\f$
-   *    * \f$f_z(z)=z\f$
+   *    * \f$f(\vec{r})=r_z\f$
    *
    * which gives us:
    *
    *    * \f$\begin{eqnarray*}
-   *    f_x(x)&+&f_y(y)&+&f(z) & = & 0 \\
-   *    0     &+& 0    &+&  z & = & 0  \\
-   *          & &      & &  z & = & 0  \\
-   *          & &      z_0&+&v_zt&=&0 \\
-   *         & &      & & -z_0 &=&v_zt \\
-   *           & &      & &  t &=&-\frac{z_0}{v_z}\end{eqnarray*}\f$
+   *              & &r_z & = & 0  \\
+   *        r_{0z}&+&v_zt&=&0 \\
+   *              &-&r_{0z} &=&v_zt \\
+   *              & &     t &=&-\frac{z_0}{v_z}\end{eqnarray*}\f$
    */
   bool intersectLocal(const kwantrace::Ray &rayLocal, double &t) const override {
     if(rayLocal.v.z()==0) {
