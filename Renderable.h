@@ -224,8 +224,10 @@ namespace kwantrace {
      */
     virtual bool insideLocal(const Position &rLocal) const = 0;
   public:
-    /** If true, the object is inside out. Primitive::inside() is inverted and the
-     * direction of the normal is reversed for inside-out images. */
+    /** If true, the object is inside-out. Primitive::inside() is inverted and the
+     * direction of the normal is reversed for inside-out primitives. Normally
+     * we don't care which side is outside, but such things as CSG difference
+     * are really just CSG intersection with inside-out objects.*/
     bool inside_out=false;
     virtual ~Primitive() {};
     virtual Observer<Primitive> intersect(const Ray &ray, double& t) const override {
