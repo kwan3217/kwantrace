@@ -119,10 +119,10 @@ int main() {
   auto sphereX1= groupX->add(std::make_shared<kwantrace::Sphere>());
   sphereX1->scale(0.5);
   sphereX1->translate(0,0.5,0);
-  auto sphereX2= groupX->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereX2= groupX->add<kwantrace::Sphere>();
   sphereX2->scale(0.25);
   sphereX2->translate(0,-0.25,0);
-  auto sphereX3= groupX->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereX3= groupX->add<kwantrace::Sphere>();
   sphereX3->scale(0.25);
   sphereX3->translate(0,0.5,0.5);
   groupX->setPigment(std::make_shared<kwantrace::ConstantColor>(1, 0, 0));
@@ -130,13 +130,13 @@ int main() {
   groupX->translate(-2,5,0);
 
   scene.add(groupY);
-  auto sphereY1= groupY->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereY1= groupY->add<kwantrace::Sphere>();
   sphereY1->scale(0.5);
   sphereY1->translate(0,0.5,0);
-  auto sphereY2= groupY->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereY2= groupY->add<kwantrace::Sphere>();
   sphereY2->scale(0.25);
   sphereY2->translate(0,-0.25,0);
-  auto sphereY3= groupY->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereY3= groupY->add<kwantrace::Sphere>();
   sphereY3->scale(0.25);
   sphereY3->translate(0,0.5,0.5);
   groupY->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 1, 0));
@@ -144,13 +144,13 @@ int main() {
   groupY->translate(0,5,0);
 
   scene.add(groupZ);
-  auto sphereZ1= groupZ->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereZ1= groupZ->add<kwantrace::Sphere>();
   sphereZ1->scale(0.5);
   sphereZ1->translate(0,0.5,0);
-  auto sphereZ2= groupZ->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereZ2= groupZ->add<kwantrace::Sphere>();
   sphereZ2->scale(0.25);
   sphereZ2->translate(0,-0.25,0);
-  auto sphereZ3= groupZ->add(std::make_shared<kwantrace::Sphere>());
+  auto sphereZ3= groupZ->add<kwantrace::Sphere>();
   sphereZ3->scale(0.25);
   sphereZ3->translate(0,0.5,0.5);
   groupZ->setPigment(std::make_shared<kwantrace::ConstantColor>(0, 0, 1));
