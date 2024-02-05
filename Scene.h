@@ -36,10 +36,10 @@ namespace kwantrace {
   public:
     /**Get width of pixel buffer.
      * @return width of pixel buffer in pixels */
-    int width() {return _width;};
+    int width() const {return _width;};
     /**Get height of pixel buffer.
      * @return height of pixel buffer in pixels */
-    int height() {return _height;};
+    int height() const {return _height;};
     /** Construct a pixel buffer with the given size
      * @param Lwidth Width in pixels
      * @param Lheight Height in pixels  */
@@ -94,6 +94,12 @@ namespace kwantrace {
     LightList lightList;    ///< All lights in the scene
     std::shared_ptr<Shader> shader; ///< Shader to use
     std::shared_ptr<Camera> camera; ///< Camera to use
+    virtual void prepareRender() {
+      objects.prepareRender();
+      for(auto&& light:lightList) light->prepareRender();
+      shader->prepareRender();
+      camera->prepareRender();
+    }
     /** Render a scene into a given pixelbuf. This covers converting a pixel coordinate
      * to a coordinate in the normalized image plane, then calls renderPixel to actually
      * do the work.
@@ -108,10 +114,6 @@ namespace kwantrace {
      *    a 2D row-major array (IE rows are contiguous in memory)
      */
     virtual void render(int width, int height, PixelBuffer<pixdepth,pixtype>& pixbuf) {
-      objects.prepareRender();
-      for(auto&& light:lightList) light->prepareRender();
-      shader->prepareRender();
-      camera->prepareRender();
       for (int row = 0; row < height; row++) {
         double y = (double(row) + 0.5) / height-0.5;
         for (int col = 0; col < width; col++) {
@@ -120,32 +122,54 @@ namespace kwantrace {
         }
       }
     }
-    /** Render a pixel. This creates a ray, checks the ray for intersections against the scene,
+    /**
+     * Render a single camera ray. This creates a ray, checks it for intersections against the scene,
      * and runs the shader on the correct intersection (which might itself spawn rays)
+     * @param x horizontal coordinate in camera plane space
+     * @param y vertical coordinate in camera plane space
+     * @return Color of this ray
+     */
+    RayColor renderCameraRay(double x, double y) {
+      Ray ray = camera->project(x, y);
+      double t;
+      Observer<Primitive> finalObject=objects.intersect(ray, t);
+      RayColor color;
+      if(finalObject) {
+        Position r = ray(t);
+        color = shader->shade(*finalObject, objects, lightList, r, ray.v.normalized(), finalObject->normal(r));
+      } else {
+        color=RayColor(0,0,0);
+      }
+      return color;
+    }
+    void recordPixel(
+            PixelBuffer<pixdepth,pixtype>& pixbuf, ///<[in] pixel buffer to render into
+            int col,                               ///<[in] column in pixel buffer
+            int row,                               ///<[in] row in pixel buffer
+            RayColor color) {
+      for(int i=0;i<pixdepth;i++) {
+        if(color[i]<=0) {
+          pixbuf(col, row, i)=0;
+        } else if (color[i]>=1.0) {
+          pixbuf(col, row, i)=std::numeric_limits<pixtype>::max();
+        } else {
+          pixbuf(col, row, i)=pixtype(color[i] * std::numeric_limits<pixtype>::max());
+        }
+      }
+    }
+    /** Render a pixel. This renders a ray, then stores the resulting color value into the pixel buffer. This
+     * is the correct function to override to do such things as anti-aliasing -- call renderCameraRay multiple
+     * times with slightly different values, and combine the results.
+     *
      */
     void renderPixel(
-      double x,                             ///<[in] horizontal coordinate on the camera plane, intended to run from (0.5,0.5)
-      double y,                             ///<[in] horizontal coordinate on the camera plane, *also* intended to run from (0.5,0.5)
+      double x,                             ///<[in] horizontal coordinate on the camera plane, intended to run from (-0.5,0.5)
+      double y,                             ///<[in] horizontal coordinate on the camera plane, *also* intended to run from (-0.5,0.5)
       int col,                              ///<[in] column in pixel buffer
       int row,                              ///<[in] row in pixel buffer
       PixelBuffer<pixdepth,pixtype>& pixbuf ///<[in] pixel buffer to render into
     ) {
-      Ray ray = camera->project(x, y);
-      double t;
-      Observer<Primitive> finalObject=objects.intersect(ray, t);
-      if(finalObject) {
-        Position r=ray(t);
-        RayColor color=shader->shade(*finalObject,objects,lightList,r,ray.v.normalized(),finalObject->normal(r));
-        for(int i=0;i<pixdepth;i++) {
-          if(color[i]<=0) {
-            pixbuf(col, row, i)=0;
-          } else if (color[i]>=1.0) {
-            pixbuf(col, row, i)=std::numeric_limits<pixtype>::max();
-          } else {
-            pixbuf(col, row, i)=pixtype(color[i] * std::numeric_limits<pixtype>::max());
-          }
-        }
-      }
+      recordPixel(pixbuf, col, row, renderCameraRay(x,y));
     }
   public:
     /** Add an object to the scene. This just forwards the object to
