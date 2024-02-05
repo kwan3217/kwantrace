@@ -184,7 +184,15 @@ namespace kwantrace {
       add(result);
       return result;
     }
-
+    /** Create a transformation like the POV-Ray location-lookat and add it to the list.
+     *
+     * @param location Location in world frame which body frame origin maps to
+     * @param look_at Look-at point in world frame.
+     * @param p_b Primary direction in body frame, will be mapped to direction (look_at-location)
+     * @param t_b Secondary direction in body frame, will be mapped as close as possible to t_r
+     * @param t_r Secondary direction in world frame, referred to as Sky in POV-Ray
+     * @return pointer to the transformation
+     */
     std::shared_ptr<LocationLookat> locationLookat(
       const Position &location,
       const Position &look_at,

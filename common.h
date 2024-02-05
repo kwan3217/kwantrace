@@ -32,7 +32,7 @@ namespace kwantrace {
    */
   template<typename T>
   using Observer= const T*;
-  const double pi=3.1415926535897932;
+  const double pi=3.1415926535897932; ///< Circle constant
 
   inline double deg2rad(double deg) { return deg * pi / 180.0; } ///<Convert degrees to radians @param deg measure in degrees @return same measure in radians
   inline double rad2deg(double rad) { return rad * 180.0 / pi; } ///<Convert radians to degrees @param rad measure in radians @return same measure in degrees

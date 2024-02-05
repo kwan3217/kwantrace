@@ -22,8 +22,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 
 namespace kwantrace {
-/** Represent an arbitrary transformation. It can have any members it needs, but must be able
- * to take its members and generate a Matrix4d on demand. Members are intended to be changed (IE properties).
+/** Represent a generator of an arbitrary affine transformation. It can have any members it needs,
+ * but must be able to take its members and generate a Matrix4d on demand. Members are intended
+ * to be changed (IE properties).
  *
  * I really didn't want to make this one -- I hoped to be able to use the Eigen transformations
  * directly, but things like translate, rotate, scale etc don't have a common base class, so they
@@ -37,10 +38,18 @@ namespace kwantrace {
   class Transformation {
   public:
     /** Construct the matrix for this transformation. This can
-     * read any of the parameters in the class.
+     * read any of the parameters in the class, but is declared
+     * const and therefore can't write anything. This is so that
+     * it can be called during a render when all
      * @return Matrix representing the transformation
      */
     virtual Eigen::Matrix4d matrix() const = 0;
+    /** Prepare the transformation for render. At this point, the
+     *  properties of the transformation are set for the frame, but
+     *  haven't been used yet. This is the time to set up caches, etc.
+     *  It's not const so that it *can* write caches etc.
+     */
+    virtual void prepareRender() {};
     virtual ~Transformation()=default; ///<Allow there to be subclasses
   };
 
@@ -257,8 +266,21 @@ namespace kwantrace {
                void setTb(const Eigen::Vector3d& Ltb) {p_b=Ltb;}    ///<Set t_b vector @param[in] Ltb New t_b vector
     Eigen::Vector3d getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
                void setTr(const Eigen::Vector3d& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
-
-    /** Calculate the matrix representing this Point-Toward transformation.
+    /**
+     * Calculate the matrix representing this Point-Toward transformation.
+     * @return Matrix representing the point-toward transformation.
+     */
+    virtual Eigen::Matrix4d matrix() const override {
+      return calcPointToward(p_b, p_r, t_b, t_r);
+    }
+    /** Do the actual work of calculating a point-toward transformation
+     *
+     * @param p_b primary (point) direction in body frame
+     * @param p_r primary (point) direction in reference frame
+     * @param t_b secondary (toward) constraint in body frame
+     * @param t_r secondary (toward) constraint in reference frame
+     * @return Matrix representing the point-toward transformation.
+     *
      * ## Problem Statement
      * \f$
      *    \def\M#1{{[\mathbf{#1}]}}
@@ -475,7 +497,14 @@ namespace kwantrace {
     Direction t_b;      ///< Toward vector in body frame
     Direction t_r;      ///< Toward vector in world frame
   public:
-    /** Construct a Location-LookAt transformation */
+    /** Construct a Location-LookAt transformation
+     *
+     * @param Llocation Value to copy into location field
+     * @param Llook_at Value to copy into look_at field
+     * @param Lp_b Value to copy into p_b field
+     * @param Lt_b Value to copy into t_b field
+     * @param Lt_r Value to copy into t_r field
+     */
     LocationLookat(
             const Position &Llocation,
             const Position &Llook_at,
@@ -485,9 +514,9 @@ namespace kwantrace {
     ):location(Llocation),look_at(Llook_at),p_b(Lp_b), t_b(Lt_b), t_r(Lt_r) {}
 
     Position getLocation() const                     {return location;} ///<Get copy of p_b vector @return copy of p_b vector
-    void setLocation(const Position& Lloc) {location=Lloc;}    ///<Set p_b vector @param[in] Lpb New p_b vector
+    void setLocation(const Position& Lloc) {location=Lloc;}    ///<Set p_b vector @param[in] Lloc New location vector
     Position getLook_at() const                     {return look_at;} ///<Get copy of t_b vector @return copy of t_b vector
-    void setLook_at(const Position& Llook) {look_at=Llook;}    ///<Set t_b vector @param[in] Ltb New t_b vector
+    void setLook_at(const Position& Llook) {look_at=Llook;}    ///<Set t_b vector @param[in] Llook New look vector
     Direction getPb() const                     {return p_b;} ///<Get copy of p_b vector @return copy of p_b vector
     void setPb(const Direction& Lpb) {p_b=Lpb;}    ///<Set p_b vector @param[in] Lpb New p_b vector
     Direction getTb() const                     {return t_b;} ///<Get copy of t_b vector @return copy of t_b vector
@@ -495,12 +524,14 @@ namespace kwantrace {
     Direction getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
     void setTr(const Direction& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
 
-      /** Creates a matrix which rotates an object at location around location to point its z axis at look_at, and
-     * its y axis as close as possible to ground. This rotation is unique
+    /** Creates a matrix which places an object at location and points it at look_at
      *
-     * @param location Location to rotate around
-     * @param look_at Point Z axis at
-     * @param ground
+     * @param location Location in world frame which body frame origin maps to
+     * @param look_at Look-at point in world frame.
+     * @param p_b Primary direction in body frame, will be mapped to direction (look_at-location)
+     * @param t_b Secondary direction in body frame, will be mapped as close as possible to t_r
+     * @param t_r Secondary direction in world frame, referred to as `sky` in POV-Ray. Default value is actually more like
+       * `ground` than `sky`.
      * @return Transformation matrix which does the job
      */
     static Eigen::Matrix4d calcLocationLookat(
