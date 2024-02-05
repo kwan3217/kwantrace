@@ -289,10 +289,10 @@ namespace kwantrace {
      *
      * ## Solution
      * We are going to do this with matrices. The solution matrix is going to be called
-     * \f$\MM{M}{_{b2r}}\f$ and will transform *from* the body frame *to* the reference frame.
+     * \f$\MM{M}{_{rb}}\f$ and will transform *to* the reference frame *from* the body frame.
      *
      * First, it is obviously impossible to in general satisfy both the "point" constraint
-     * \f$\hat{p}_r=\MM{M}{_{b2r}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{b2r}}\hat{t}_b\f$.
+     * \f$\hat{p}_r=\MM{M}{_{rb}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{rb}}\hat{t}_b\f$.
      * Satisfying both is possible if and only if the angle between \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$
      * is the same as the angle between \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$. When these
      * angles do not match, the point constraint will be perfectly satisfied, and the
@@ -303,10 +303,10 @@ namespace kwantrace {
      * \f$\hat{s}=\operatorname{normalize}(\hat{p} \times \hat{t})\f$. This vector is
      * normal to the plane containing point and toward in both frames, so when the plane
      * is the same, these vectors match. Therefore we have another constraint which can
-     * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{b2r}}\hat{s}_b\f$.
+     * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{rb}}\hat{s}_b\f$.
      * So, we have:
      *
-     * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{b2r}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
+     * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{rb}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
      *
      * This isn't quite enough data, it works out to nine unknowns and six equations.
      * We can add one more constraint by considering the vector \f$\hat{u}\f$ perpendicular
@@ -325,16 +325,16 @@ namespace kwantrace {
      *
      * \f$\begin{eqnarray*}
      *    \M{B}&=&\begin{bmatrix}\hat{p}_b && \hat{s}_b\ && \hat{u}_b \end{bmatrix} \\
-     *    \M{R}&=&\MM{M}{_{b2r}}\M{B} \\
-     *    \M{R}\M{B}^{-1}&=&\MM{M}{_{b2r}}\end{eqnarray*}\f$
+     *    \M{R}&=&\MM{M}{_{rb}}\M{B} \\
+     *    \M{R}\M{B}^{-1}&=&\MM{M}{_{rb}}\end{eqnarray*}\f$
      *
      *The above calls for a matrix inverse, but who has time for that? Since all the columns of
      * \f$\M{B}\f$ (and \f$\M{R}\f$ for that matter) are unit length and perpendicular to each
      * other, the matrix is orthogonal, which means that its inverse is its transpose.
      *
-     * \f$\M{R}\M{B}^T=\MM{M}{_{b2r}}\f$
+     * \f$\M{R}\M{B}^T=\MM{M}{_{rb}}\f$
      *
-     * And that's the solution. Note that if you need \f$\MM{M}{_{r2b}}\f$, it is also a transpose
+     * And that's the solution. Note that if you need \f$\MM{M}{_{br}}\f$, it is also a transpose
      * since this answer is still an orthonormal (IE rotation) matrix.
      * @return Matrix representing the point-toward transformation.
      */
@@ -354,9 +354,9 @@ namespace kwantrace {
       Direction s_b = (p_b.cross(t_b)).normalized();
       Direction u_b = (p_b.cross(s_b)).normalized();
       B << p_b.normalized(), s_b, u_b;
-      Eigen::Matrix4d M_b2r = Eigen::Matrix4d::Identity();
-      M_b2r.block<3, 3>(0, 0) = R * B.transpose();
-      return M_b2r;
+      Eigen::Matrix4d M_rb = Eigen::Matrix4d::Identity();
+      M_rb.block<3, 3>(0, 0) = R * B.transpose();
+      return M_rb;
     }
     /** Exercise pointToward().
      * \image html Space_Shuttle_Coordinate_System.jpg
@@ -449,14 +449,14 @@ namespace kwantrace {
       Eigen::Matrix3d B;
       B << p_b,s_b,u_b;
       std::cout << "B:  "<< std::endl << B << std::endl;
-      Eigen::Matrix3d M_b2r_direct=R*B.transpose();
-      std::cout << "M_b2r (direct):  "<< std::endl << M_b2r_direct << std::endl;
-      auto M_b2r=calcPointToward(p_b,p_r,t_b,t_r);
-      std::cout << "M_b2r:  "<< std::endl << M_b2r << std::endl;
-      std::cout << "M_b2r*p_b (should equal p_r):  "<< std::endl << M_b2r*p_b << std::endl;
-      std::cout << "M_b2r*s_b (should equal s_r):  "<< std::endl << M_b2r*s_b << std::endl;
-      std::cout << "M_b2r*u_b (should equal u_r):  "<< std::endl << M_b2r*u_b << std::endl;
-      std::cout << "M_b2r*t_b (should be towards t_r):  "<< std::endl << M_b2r*t_b << std::endl;
+      Eigen::Matrix3d M_rb_direct=R*B.transpose();
+      std::cout << "M_rb (direct):  "<< std::endl << M_rb_direct << std::endl;
+      auto M_rb=calcPointToward(p_b,p_r,t_b,t_r);
+      std::cout << "M_rb:  "<< std::endl << M_rb << std::endl;
+      std::cout << "M_rb*p_b (should equal p_r):  "<< std::endl << M_rb*p_b << std::endl;
+      std::cout << "M_rb*s_b (should equal s_r):  "<< std::endl << M_rb*s_b << std::endl;
+      std::cout << "M_rb*u_b (should equal u_r):  "<< std::endl << M_rb*u_b << std::endl;
+      std::cout << "M_rb*t_b (should be towards t_r):  "<< std::endl << M_rb*t_b << std::endl;
     }
   };
 
