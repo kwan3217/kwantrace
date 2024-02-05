@@ -28,13 +28,8 @@ int main() {
   kwantrace::Scene<> scene;
   auto camera=scene.set(std::make_shared<kwantrace::PerspectiveCamera>(width,height));
   camera->locationLookat(kwantrace::Position(-5,5,2),kwantrace::Position(5,0,2));
-  //camera->translate(0,0,2);
-  //camera->rotateX(-90);
 
   auto shader=scene.set(std::make_shared<kwantrace::POVRayShader>());
-  //auto sphere1=scene.add(std::make_shared<kwantrace::Sphere>());
-  //sphere1->translate(5,0,0);
-  //sphere1->setPigment(std::make_shared<kwantrace::ConstantColor>(1, 0, 0));
 
   auto plane=scene.add(std::make_shared<kwantrace::Plane>());
   plane->translate(0,0,-1);
