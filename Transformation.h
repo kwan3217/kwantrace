@@ -358,11 +358,7 @@ namespace kwantrace {
      *
      * And that's the solution. Note that if you need \f$\MM{M}{_{br}}\f$, it is also a transpose
      * since this answer is still an orthonormal (IE rotation) matrix.
-     * @return Matrix representing the point-toward transformation.
      */
-    virtual Eigen::Matrix4d matrix() const override {
-      return calcPointToward(p_b, p_r, t_b, t_r);
-    }
     static Eigen::Matrix4d calcPointToward(
       Direction p_b,
       Direction p_r,
@@ -486,8 +482,6 @@ namespace kwantrace {
   /** Represent the Point-Toward transformation. This rotates an object such that
    * p_b in the body frame points at p_r in the world frame, and t_b in the body frame is towards
    * t_r in the world frame.
-   *
-   *
    */
   class LocationLookat:public Transformation {
   private:
