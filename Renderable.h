@@ -249,7 +249,7 @@ namespace kwantrace {
      *    \def\operatorname#1{{\mbox{#1}}}
      *  \f$
      * Special consideration must be taken to transform the normals into world coordinates.
-     * If you just use the \f$\MM{M}{_{b2w}}\f$ transformation, this will be wrong, as in general
+     * If you just use the \f$\MM{M}{_{wb}}\f$ transformation, this will be wrong, as in general
      * an arbitrary affine transformation does not preserve angles -- translation, rotation
      * and uniform scaling do, but non-uniform scaling does not. Shearing doesn't either,
      * but that can be thought of as a combination of a rotation and non-uniform scaling.
@@ -262,12 +262,13 @@ namespace kwantrace {
      * https://www.cs.auckland.ac.nz/courses/compsci373s1c/PatricesLectures/2011/CS373-Part1-Lecture11-RayTracing3.pdf ,
      * slide 11.
      *
-     * Assume there is some matrix \f$\MM{Q}{_{b2w}}\f$ which properly transforms a
-     * normal from body to world coordinates. As it so happens, there is, and
-     * it only depends on \f$\MM{M}{_{b2w}}\f$, not any of \f$\vec{r}\f$, \f$\vec{n}\f$,
-     * or \f$\vec{p}\f$. That's the wonderful thing about linear algebra, is that it's *linear*.
+     * Assume there is some matrix \f$\MM{Q}{_{wb}}\f$ which properly transforms a
+     * normal from body to world coordinates. Let's hope there is, and that it is uniform over space (doesn't depend on
+     * \f$\vec{r}\f$) or on the actual shape of the surface (doesn't depend on normal vector \f$\vec{n}\f$). If this turned out
+     * to not be the case, we would have to do something more complicated. As it so happens, there is a solution, and
+     * it only depends on \f$\MM{M}{_{wb}}\f$. That's the wonderful thing about linear algebra, is that it's *linear*.
      * Starting from the assumption that there *is* an answer, we
-     * will construct the answer and show that it only depends on \f$\MM{M}{_{b2w}}\f$
+     * will construct the answer and show that it only depends on \f$\MM{M}{_{wb}}\f$
      *
      * In the body frame, imagine the direction vectors \f$\vec{p}\f$ parallel to the surface
      * and therefore perpendicular to the normal. There are an infinite number of such vectors, and what
@@ -278,40 +279,40 @@ namespace kwantrace {
      * vectors, we can express the dot product as a matrix product if we transpose
      * the first vector, so we have \f$\M{n}\T\M{p}=0\f$.
      *
-     * These vectors *do* obey the \f$\MM{M}{_{b2w}}\f$ transformation, since they must follow
+     * These vectors \f$\vec{p}\f$ *do* obey the \f$\MM{M}{_{wb}}\f$ transformation, since they must follow
      * the surface, and the surface certainly does obey the transformation. We will have
-     * \f$\vec{p}'=\MM{M}{_{b2w}}\vec{p}\f$.
+     * \f$\vec{p}_w=\MM{M}{_{wb}}\vec{p}_b\f$.
      *
-     * Any new normal \f$\vec{n}'\f$ must still be perpendicular, so it must be true that
-     * \f$\vec{n}'\cdot\vec{p}'=0\f$, or \f$\MM{n}{'}\T\MM{p}{'}=0\f$. We substitute in
-     * \f$\vec{n}'=\MM{Q}{_{b2w}}\vec{n}\f$ and \f$\vec{p}'=\MM{M}{_{b2w}}\vec{p}\f$
+     * Any new normal \f$\vec{n}_w\f$ must still be perpendicular, so it must be true that
+     * \f$\vec{n}_w\cdot\vec{p}_w=0\f$, or \f$\MM{n}{_w}\T\MM{p}{_w}=0\f$. We substitute in
+     * \f$\vec{n}_w=\MM{Q}{_{wb}}\vec{n}_b\f$ and \f$\vec{p}_w=\MM{M}{_{wb}}\vec{p}_b\f$
      * into our matrix dot product and come up with:
      *
-     * \f$(\MM{Q}{_{b2w}}\M{n})\T(\MM{M}{_{b2w}}\M{p})=0\f$
+     * \f$(\MM{Q}{_{wb}}\MM{n}{_b})\T(\MM{M}{_{wb}}\MM{p}{_b})=0\f$
      *
      * Now it's just linear algebra:
      *
      *  \f$\begin{eqnarray*}
-     *  0&=&(\MM{Q}{_{b2w}}\M{n})\T(\MM{M}{_{b2w}}\M{p}) \\
-     *   &=&(\M{n}\T\MM{Q}{_{b2w}}\T)(\MM{M}{_{b2w}}\M{p}) \\
-     *   &=&\M{n}\T\MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}\M{p} \\
+     *  0&=&(\MM{Q}{_{wb}}\MM{n}{_b})\T(\MM{M}{_{wb}}\MM{p}{_b}) \\
+     *   &=&(\MM{n}{_b}\T\MM{Q}{_{wb}}\T)(\MM{M}{_{wb}}\MM{p}{_b}) \\
+     *   &=&\MM{n}{_b}\T\MM{Q}{_{wb}}\T\MM{M}{_{wb}}\MM{p}{_b} \\
      *  \end{eqnarray*}\f$
      *
      *  If that middle cluster of matrices simplified into an identity matrix, we would
-     *  be left with \f$\M{n}\T\M{p}=0\f$, which is assumed to be true as our starting
+     *  be left with \f$\MM{n}{_b}\T\MM{p}{_b}=0\f$, which is assumed to be true as our starting
      *  condition. So, [all we have to do now is to take these lies and makes them true
      *  somehow...](https://youtu.be/diYAc7gB-0A?t=127) We assume that the middle cluster of matrices
-     *  is identity, then solve for \f$\MM{Q}{_{b2w}}\f$ given find a \f$\MM{M}{_{b2w}}\f$.
+     *  is identity, then solve for \f$\MM{Q}{_{wb}}\f$ given an \f$\MM{M}{_{wb}}\f$.
      *
      *  \f$\begin{eqnarray*}
-     *  \MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}&=&\M{1} \\
-     *  \MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}\MM{M}{_{b2w}}^{-1}&=&\M{1}\MM{M}{_{b2w}}^{-1} \\
-     *  \MM{Q}{_{b2w}}\T&=&\MM{M}{_{b2w}}^{-1} \\
-     *  \MM{Q}{_{b2w}}&=&(\MM{M}{_{b2w}}^{-1})\T \\
+     *  \MM{Q}{_{wb}}\T\MM{M}{_{wb}}&=&\M{1} \\
+     *  \MM{Q}{_{wb}}\T\MM{M}{_{wb}}\MM{M}{_{wb}}^{-1}&=&\M{1}\MM{M}{_{wb}}^{-1} \\
+     *  \MM{Q}{_{wb}}\T&=&\MM{M}{_{wb}}^{-1} \\
+     *  \MM{Q}{_{wb}}&=&(\MM{M}{_{wb}}^{-1})\T \\
      *  \end{eqnarray*}\f$
      *
      *  And there it is. There is a matrix that transforms a normal from body to world space,
-     *  that only depends on matrix \f$\MM{M}{_{b2w}}\f$, not on any of the vectors.
+     *  that only depends on matrix \f$\MM{M}{_{wb}}\f$, not on any of the vectors.
      *
      *  Since this is commonly used, we will ask our transformation chain to calculate it
      *  at the same time that it concatenates all of the transformations into a single matrix.
@@ -325,7 +326,7 @@ namespace kwantrace {
      * @return Unit normal vector in world coordinates
      */
     virtual Direction normal(const Position &r) const {
-      return (Direction) ((inside_out ? -1 : 1) * (Mb2wN * normalLocal(Mw2b * r)).normalized());
+      return (Direction) ((inside_out ? -1 : 1) * (MwbN * normalLocal(Mbw * r)).normalized());
     }
     /** Calculate if a point is inside the primitive. This transforms
      * the point to body coordinates, calls the descendant's
@@ -338,7 +339,7 @@ namespace kwantrace {
      * @return True if point is inside the primitive
      */
     virtual bool inside(const Position &r) const override {
-      return inside_out ^ insideLocal(Mw2b * r);
+      return inside_out ^ insideLocal(Mbw * r);
     }
   };
 

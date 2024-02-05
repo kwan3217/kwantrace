@@ -40,14 +40,14 @@ namespace kwantrace {
   public:
     /** Create a ray in world space. This is done by
      * having a subclass create a ray in local space, then using
-     * \f$[\mathbf{M}_{b2r}]\f$ to transform the ray to world space.
+     * \f$[\mathbf{M}_{rb}]\f$ to transform the ray to world space.
      *
      * @param x horizontal camera plane coordinate, from -0.5 on the left to 0.5 on the right
      * @param y vertical camera plane coordinate, from -0.5 on top to 0.5 on bottom.
      * @return Ray in world coordinates
      */
     Ray project(double x, double y) const {
-      return Mb2w * projectLocal(x, y);
+      return Mwb * projectLocal(x, y);
     }
   };
 }
