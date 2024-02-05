@@ -95,6 +95,23 @@ namespace kwantrace {
 
   /** Primitive object -- IE one that directly has geometry itself, rather than being a composite of other
    * renderables. Subclasses of this only need to deal with local coordinates.
+   *
+   * Most actual primitives have some space in which it is easiest to calculate the intersections and normals.
+   * For instance, any sphere of any size in any position can be thought of as a unit sphere centered on the origin,
+   * but then scaled to the right radius and translated to the correct position. The sphere intersection problem
+   * is much easier if we transform the rays from the *world* coordinate system to a *local* (or *body*) coordinate
+   * system. In this system, most of the coefficients become either zero or one. We can transform the ray to the
+   * local system, do the intersection and normal calculation, then transform the intersection point and normal back to
+   * the world coordinate system.
+   *
+   * In the spherical case, it is questionable whether the savings in working in local coordinates is worth the cost of
+   * transforming between world and local coordinates. A sphere is just a quadratic, and any shape, rotation, and scale
+   * of any quadratic surface can be expressed in 10 coefficients. If we wanted to do general quadratics, we would probably
+   * not care so much about local coordinates. However, we still do it this way because once an object is defined, we
+   * very well may wish to transform it further. For instance in the quadratic surface case, we *could* choose the
+   * 10 coefficients to directly express the surface in world space. However, once we have done that, it is by no means
+   * straightforward to translate, scale, or rotate that surface. What changes to the coefficients will be necessary
+   * in the general case?
    */
   class Primitive:public Renderable {
   private:
@@ -344,5 +361,6 @@ namespace kwantrace {
 }
 
 #include "Sphere.h"
+#include "Plane.h"
 
 #endif //KWANTRACE_RENDERABLE_H

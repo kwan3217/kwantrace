@@ -20,63 +20,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "kwantrace.h"
 #include "Composite.h"
 
-/** Example of implementing a primitive
- * Every primitive needs three functions to customize it:
- *   * A function to determine where a ray and the primitive meet
- *   * A function to determine the normal vector at a point.
- *   * A function to determine whether a point is inside the object.
- */
-class Plane: public kwantrace::Primitive {
-  /** Intersect a ray with the plane z=0.
-   * \see kwantrace::Primitive::intersectLocal()
-   *
-   * For a plane, our surface equation is super-simple, just:
-   *
-   *    * \f$f(\vec{r})=r_z\f$
-   *
-   * which gives us:
-   *
-   *    * \f$\begin{eqnarray*}
-   *              & &r_z & = & 0  \\
-   *        r_{0z}&+&v_zt&=&0 \\
-   *              &-&r_{0z} &=&v_zt \\
-   *              & &     t &=&-\frac{z_0}{v_z}\end{eqnarray*}\f$
-   */
-  bool intersectLocal(const kwantrace::Ray &rayLocal, double &t) const override {
-    if(rayLocal.v.z()==0) {
-      t=0;
-      return rayLocal.r0.z()==0;
-    }
-    t=-rayLocal.r0.z()/rayLocal.v.z();
-    return t>0;
-  }
-  /**
-   * \copydoc kwantrace::Primitive::normalLocal()
-   *
-   * Note that this function only needs to be valid at the surface.
-   * Many primitives have a normal function which is correct at
-   * the surface, but returns some value everywhere or almost
-   * everywhere in space. This one for instance always returns
-   * the \f$\hat{z}\f$ vector, since that is correct anywhere on the plane.
-   */
-  kwantrace::Direction normalLocal(const kwantrace::Position &rLocal) const override {
-    return kwantrace::Direction(0,0,1);
-  }
-  /**   * \copydoc kwantrace::Primitive::insideLocal()
-   * One naive way to
-   * define "inside" is that if a point is exactly on the plane,
-   * it is inside. However, it is much more useful to consider the plane
-   * to divide space in half, and to consider one entire half of space
-   * to be "inside". Since our plane is at \f$z=0\f$, we will treat any
-   * point \f$z<0\f$ as inside the plane. Note that it doesn't really matter
-   * if we use \f$z<0\f$ or \f$z\le 0\f$.
-   *
-   */
-  bool insideLocal(const kwantrace::Position &rLocal) const override {
-    return rLocal.z()<0;
-  }
-};
-
 int main() {
   kwantrace::PointToward::exercisePointToward();
   const int width=1920;
@@ -84,7 +27,9 @@ int main() {
 
   kwantrace::Scene<> scene;
   auto camera=scene.set(std::make_shared<kwantrace::PerspectiveCamera>(width,height));
-  camera->locationLookat(kwantrace::Position(0,0,0),kwantrace::Position(0,5,0));
+  camera->locationLookat(kwantrace::Position(-5,5,2),kwantrace::Position(5,0,2));
+  //camera->translate(0,0,2);
+  //camera->rotateX(-90);
 
   auto shader=scene.set(std::make_shared<kwantrace::POVRayShader>());
   auto plane=scene.add(std::make_shared<Plane>());
