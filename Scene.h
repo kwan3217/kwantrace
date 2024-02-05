@@ -174,6 +174,19 @@ namespace kwantrace {
       render(width, height, pixbuf);
       return pixbuf;
     }
+    RayColor trace(double x, double y, bool& hit) {
+      Ray ray = camera->project(x, y);
+      double t;
+      Observer<Primitive> finalObject=objects.intersect(ray, t);
+      if(finalObject) {
+        Position r = ray(t);
+        hit = true;
+        return shader->shade(*finalObject, objects, lightList, r, ray.v.normalized(), finalObject->normal(r));
+      } else {
+        hit=false;
+        return RayColor();
+      }
+    }
   };
 }
 
