@@ -22,8 +22,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 
 namespace kwantrace {
-/** Represent an arbitrary transformation. It can have any members it needs, but must be able
- * to take its members and generate a Matrix4d on demand. Members are intended to be changed (IE properties).
+/** Represent a generator of an arbitrary affine transformation. It can have any members it needs,
+ * but must be able to take its members and generate a Matrix4d on demand. Members are intended
+ * to be changed (IE properties).
  *
  * I really didn't want to make this one -- I hoped to be able to use the Eigen transformations
  * directly, but things like translate, rotate, scale etc don't have a common base class, so they
@@ -37,10 +38,18 @@ namespace kwantrace {
   class Transformation {
   public:
     /** Construct the matrix for this transformation. This can
-     * read any of the parameters in the class.
+     * read any of the parameters in the class, but is declared
+     * const and therefore can't write anything. This is so that
+     * it can be called during a render when all
      * @return Matrix representing the transformation
      */
     virtual Eigen::Matrix4d matrix() const = 0;
+    /** Prepare the transformation for render. At this point, the
+     *  properties of the transformation are set for the frame, but
+     *  haven't been used yet. This is the time to set up caches, etc.
+     *  It's not const so that it *can* write caches etc.
+     */
+    virtual void prepareRender() {};
     virtual ~Transformation()=default; ///<Allow there to be subclasses
   };
 
@@ -257,8 +266,21 @@ namespace kwantrace {
                void setTb(const Eigen::Vector3d& Ltb) {p_b=Ltb;}    ///<Set t_b vector @param[in] Ltb New t_b vector
     Eigen::Vector3d getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
                void setTr(const Eigen::Vector3d& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
-
-    /** Calculate the matrix representing this Point-Toward transformation.
+    /**
+     * Calculate the matrix representing this Point-Toward transformation.
+     * @return Matrix representing the point-toward transformation.
+     */
+    virtual Eigen::Matrix4d matrix() const override {
+      return calcPointToward(p_b, p_r, t_b, t_r);
+    }
+    /** Do the actual work of calculating a point-toward transformation
+     *
+     * @param p_b primary (point) direction in body frame
+     * @param p_r primary (point) direction in reference frame
+     * @param t_b secondary (toward) constraint in body frame
+     * @param t_r secondary (toward) constraint in reference frame
+     * @return Matrix representing the point-toward transformation.
+     *
      * ## Problem Statement
      * \f$
      *    \def\M#1{{[\mathbf{#1}]}}
@@ -289,10 +311,10 @@ namespace kwantrace {
      *
      * ## Solution
      * We are going to do this with matrices. The solution matrix is going to be called
-     * \f$\MM{M}{_{b2r}}\f$ and will transform *from* the body frame *to* the reference frame.
+     * \f$\MM{M}{_{rb}}\f$ and will transform *to* the reference frame *from* the body frame.
      *
      * First, it is obviously impossible to in general satisfy both the "point" constraint
-     * \f$\hat{p}_r=\MM{M}{_{b2r}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{b2r}}\hat{t}_b\f$.
+     * \f$\hat{p}_r=\MM{M}{_{rb}}\hat{p}_b\f$ and the toward constraint \f$\hat{t}_r=\MM{M}{_{rb}}\hat{t}_b\f$.
      * Satisfying both is possible if and only if the angle between \f$\hat{p}_r\f$ and \f$\hat{t}_r\f$
      * is the same as the angle between \f$\hat{p}_b\f$ and \f$\hat{t}_b\f$. When these
      * angles do not match, the point constraint will be perfectly satisfied, and the
@@ -303,10 +325,10 @@ namespace kwantrace {
      * \f$\hat{s}=\operatorname{normalize}(\hat{p} \times \hat{t})\f$. This vector is
      * normal to the plane containing point and toward in both frames, so when the plane
      * is the same, these vectors match. Therefore we have another constraint which can
-     * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{b2r}}\hat{s}_b\f$.
+     * be perfectly satisfied, \f$\hat{s}_r=\MM{M}{_{rb}}\hat{s}_b\f$.
      * So, we have:
      *
-     * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{b2r}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
+     * \f$\begin{bmatrix}\hat{p}_r && \hat{s}_r\end{bmatrix}=\MM{M}{_{rb}}\begin{bmatrix}\hat{p}_b && \hat{s}_b\end{bmatrix}\f$
      *
      * This isn't quite enough data, it works out to nine unknowns and six equations.
      * We can add one more constraint by considering the vector \f$\hat{u}\f$ perpendicular
@@ -325,22 +347,18 @@ namespace kwantrace {
      *
      * \f$\begin{eqnarray*}
      *    \M{B}&=&\begin{bmatrix}\hat{p}_b && \hat{s}_b\ && \hat{u}_b \end{bmatrix} \\
-     *    \M{R}&=&\MM{M}{_{b2r}}\M{B} \\
-     *    \M{R}\M{B}^{-1}&=&\MM{M}{_{b2r}}\end{eqnarray*}\f$
+     *    \M{R}&=&\MM{M}{_{rb}}\M{B} \\
+     *    \M{R}\M{B}^{-1}&=&\MM{M}{_{rb}}\end{eqnarray*}\f$
      *
      *The above calls for a matrix inverse, but who has time for that? Since all the columns of
      * \f$\M{B}\f$ (and \f$\M{R}\f$ for that matter) are unit length and perpendicular to each
      * other, the matrix is orthogonal, which means that its inverse is its transpose.
      *
-     * \f$\M{R}\M{B}^T=\MM{M}{_{b2r}}\f$
+     * \f$\M{R}\M{B}^T=\MM{M}{_{rb}}\f$
      *
-     * And that's the solution. Note that if you need \f$\MM{M}{_{r2b}}\f$, it is also a transpose
+     * And that's the solution. Note that if you need \f$\MM{M}{_{br}}\f$, it is also a transpose
      * since this answer is still an orthonormal (IE rotation) matrix.
-     * @return Matrix representing the point-toward transformation.
      */
-    virtual Eigen::Matrix4d matrix() const override {
-      return calcPointToward(p_b, p_r, t_b, t_r);
-    }
     static Eigen::Matrix4d calcPointToward(
       Direction p_b,
       Direction p_r,
@@ -354,9 +372,9 @@ namespace kwantrace {
       Direction s_b = (p_b.cross(t_b)).normalized();
       Direction u_b = (p_b.cross(s_b)).normalized();
       B << p_b.normalized(), s_b, u_b;
-      Eigen::Matrix4d M_b2r = Eigen::Matrix4d::Identity();
-      M_b2r.block<3, 3>(0, 0) = R * B.transpose();
-      return M_b2r;
+      Eigen::Matrix4d M_rb = Eigen::Matrix4d::Identity();
+      M_rb.block<3, 3>(0, 0) = R * B.transpose();
+      return M_rb;
     }
     /** Exercise pointToward().
      * \image html Space_Shuttle_Coordinate_System.jpg
@@ -449,14 +467,14 @@ namespace kwantrace {
       Eigen::Matrix3d B;
       B << p_b,s_b,u_b;
       std::cout << "B:  "<< std::endl << B << std::endl;
-      Eigen::Matrix3d M_b2r_direct=R*B.transpose();
-      std::cout << "M_b2r (direct):  "<< std::endl << M_b2r_direct << std::endl;
-      auto M_b2r=calcPointToward(p_b,p_r,t_b,t_r);
-      std::cout << "M_b2r:  "<< std::endl << M_b2r << std::endl;
-      std::cout << "M_b2r*p_b (should equal p_r):  "<< std::endl << M_b2r*p_b << std::endl;
-      std::cout << "M_b2r*s_b (should equal s_r):  "<< std::endl << M_b2r*s_b << std::endl;
-      std::cout << "M_b2r*u_b (should equal u_r):  "<< std::endl << M_b2r*u_b << std::endl;
-      std::cout << "M_b2r*t_b (should be towards t_r):  "<< std::endl << M_b2r*t_b << std::endl;
+      Eigen::Matrix3d M_rb_direct=R*B.transpose();
+      std::cout << "M_rb (direct):  "<< std::endl << M_rb_direct << std::endl;
+      auto M_rb=calcPointToward(p_b,p_r,t_b,t_r);
+      std::cout << "M_rb:  "<< std::endl << M_rb << std::endl;
+      std::cout << "M_rb*p_b (should equal p_r):  "<< std::endl << M_rb*p_b << std::endl;
+      std::cout << "M_rb*s_b (should equal s_r):  "<< std::endl << M_rb*s_b << std::endl;
+      std::cout << "M_rb*u_b (should equal u_r):  "<< std::endl << M_rb*u_b << std::endl;
+      std::cout << "M_rb*t_b (should be towards t_r):  "<< std::endl << M_rb*t_b << std::endl;
     }
   };
 
@@ -464,8 +482,6 @@ namespace kwantrace {
   /** Represent the Point-Toward transformation. This rotates an object such that
    * p_b in the body frame points at p_r in the world frame, and t_b in the body frame is towards
    * t_r in the world frame.
-   *
-   *
    */
   class LocationLookat:public Transformation {
   private:
@@ -475,7 +491,14 @@ namespace kwantrace {
     Direction t_b;      ///< Toward vector in body frame
     Direction t_r;      ///< Toward vector in world frame
   public:
-    /** Construct a Location-LookAt transformation */
+    /** Construct a Location-LookAt transformation
+     *
+     * @param Llocation Value to copy into location field
+     * @param Llook_at Value to copy into look_at field
+     * @param Lp_b Value to copy into p_b field
+     * @param Lt_b Value to copy into t_b field
+     * @param Lt_r Value to copy into t_r field
+     */
     LocationLookat(
             const Position &Llocation,
             const Position &Llook_at,
@@ -485,9 +508,9 @@ namespace kwantrace {
     ):location(Llocation),look_at(Llook_at),p_b(Lp_b), t_b(Lt_b), t_r(Lt_r) {}
 
     Position getLocation() const                     {return location;} ///<Get copy of p_b vector @return copy of p_b vector
-    void setLocation(const Position& Lloc) {location=Lloc;}    ///<Set p_b vector @param[in] Lpb New p_b vector
+    void setLocation(const Position& Lloc) {location=Lloc;}    ///<Set p_b vector @param[in] Lloc New location vector
     Position getLook_at() const                     {return look_at;} ///<Get copy of t_b vector @return copy of t_b vector
-    void setLook_at(const Position& Llook) {look_at=Llook;}    ///<Set t_b vector @param[in] Ltb New t_b vector
+    void setLook_at(const Position& Llook) {look_at=Llook;}    ///<Set t_b vector @param[in] Llook New look vector
     Direction getPb() const                     {return p_b;} ///<Get copy of p_b vector @return copy of p_b vector
     void setPb(const Direction& Lpb) {p_b=Lpb;}    ///<Set p_b vector @param[in] Lpb New p_b vector
     Direction getTb() const                     {return t_b;} ///<Get copy of t_b vector @return copy of t_b vector
@@ -495,28 +518,29 @@ namespace kwantrace {
     Direction getTr() const                     {return t_r;} ///<Get copy of t_r vector @return copy of t_r vector
     void setTr(const Direction& Ltr) {p_b=Ltr;}    ///<Set t_r vector @param[in] Ltr New t_r vector
 
-      /** Creates a matrix which rotates an object at location around location to point its z axis at look_at, and
-     * its y axis as close as possible to ground. This rotation is unique
+    /** Creates a matrix which places an object at location and points it at look_at
      *
-     * @param location Location to rotate around
-     * @param look_at Point Z axis at
-     * @param ground
+     * @param location Location in world frame which body frame origin maps to
+     * @param look_at Look-at point in world frame.
+     * @param p_b Primary direction in body frame, will be mapped to direction (look_at-location)
+     * @param t_b Secondary direction in body frame, will be mapped as close as possible to t_r
+     * @param t_r Secondary direction in world frame, referred to as `sky` in POV-Ray. Default value is actually more like
+       * `ground` than `sky`.
      * @return Transformation matrix which does the job
      */
-    static Eigen::Matrix4d calcLocationLookat(
-      const Position &location,
-      const Position &look_at,
-      const Direction &p_b=Direction(0,0,1),
-      const Direction& t_b=Direction(0,1,0),
-      const Direction &t_r = Direction(0, 0, -1)
+    static Eigen::Matrix4d calc(
+      const Position& location,
+      const Position& look_at,
+      const Direction& p_b= Direction(0, 0, 1),
+      const Direction& t_b= Direction(0, 1, 0),
+      const Direction& t_r = Direction(0, 0, -1)
     ) {
-      Eigen::Matrix4d result;
-      result=PointToward(p_b,Direction(look_at-location),t_b,t_r).matrix()*result; //Use point-toward to point at the target
-      result=Translation(location).matrix()*result; //Translate back to location
+      Eigen::Matrix4d result= PointToward::calc(p_b, Direction(look_at - location), t_b, t_r); //Use point-toward to point at the target
+      result=Translation::calc(location)*result; //Translate back to location
       return result;
     }
     Eigen::Matrix4d matrix() const override {
-      return calcLocationLookat(location,look_at,p_b,t_b,t_r);
+      return calc(location, look_at, p_b, t_b, t_r);
     }
   };
 }

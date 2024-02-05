@@ -175,7 +175,7 @@ namespace kwantrace {
           Ray r_light=light->rayTo(r);
           double lightVisible=light->amountVisible(scene,r_light);
           if(lightVisible>0) {
-            double dot=n.dot(r_light.v);
+            double dot=n.dot(r_light.v.normalized());
             if(dot>0) {
               result+=(dot*objectColor.array()*light->color.array()).matrix().head<3>();
             }

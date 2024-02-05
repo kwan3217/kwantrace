@@ -144,6 +144,7 @@ are practically essays in themselves.
 
 * Parametric equations and rays: kwantrace::Ray
 * Intersections with implicit surfaces: kwantrace::Primitive::intersectLocal()
+* Local and world coordinates: kwantrace::Primitive
 * Transforming normal vectors from body to world coordinates: kwantrace::Primitive::normal()
 * Transformation of an object to point it at a target: kwantrace::PointToward::matrix()
 * Coordinate frame handedness: kwantrace::RotateScalar

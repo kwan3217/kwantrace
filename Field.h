@@ -26,7 +26,7 @@ namespace kwantrace {
      * @param r  Position to evaluate the field at, in local space
      * @return value of the field at this point
      */
-    OutVector operator()(const Position& r) const {return fieldLocal(Mw2b * r);};
+    OutVector operator()(const Position& r) const {return fieldLocal(Mbw * r);};
     virtual ~Field()=default; ///< Allow subclassing
 
     /** Evaluate the function at a point in world space

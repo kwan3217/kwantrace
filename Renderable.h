@@ -32,8 +32,8 @@ namespace kwantrace {
      * visible surface geometry.
      *
      * @param[in] ray Ray in world space
-     * @param[out] t Ray parameter of intersection
-     * @return              Pointer to Primitive if ray intersects surface, nullptr if not.
+     * @return              Pointer to Primitive if ray intersects      * @param[out] t Ray parameter of intersection
+, nullptr if not.
      *                         Output parameter t is unspecified if function returns false
      */
     virtual Observer<Primitive> intersect(const Ray &ray,double& t) const=0;
@@ -95,6 +95,23 @@ namespace kwantrace {
 
   /** Primitive object -- IE one that directly has geometry itself, rather than being a composite of other
    * renderables. Subclasses of this only need to deal with local coordinates.
+   *
+   * Most actual primitives have some space in which it is easiest to calculate the intersections and normals.
+   * For instance, any sphere of any size in any position can be thought of as a unit sphere centered on the origin,
+   * but then scaled to the right radius and translated to the correct position. The sphere intersection problem
+   * is much easier if we transform the rays from the *world* coordinate system to a *local* (or *body*) coordinate
+   * system. In this system, most of the coefficients become either zero or one. We can transform the ray to the
+   * local system, do the intersection and normal calculation, then transform the intersection point and normal back to
+   * the world coordinate system.
+   *
+   * In the spherical case, it is questionable whether the savings in working in local coordinates is worth the cost of
+   * transforming between world and local coordinates. A sphere is just a quadratic, and any shape, rotation, and scale
+   * of any quadratic surface can be expressed in 10 coefficients. If we wanted to do general quadratics, we would probably
+   * not care so much about local coordinates. However, we still do it this way because once an object is defined, we
+   * very well may wish to transform it further. For instance in the quadratic surface case, we *could* choose the
+   * 10 coefficients to directly express the surface in world space. However, once we have done that, it is by no means
+   * straightforward to translate, scale, or rotate that surface. What changes to the coefficients will be necessary
+   * in the general case?
    */
   class Primitive:public Renderable {
   private:
@@ -187,7 +204,17 @@ namespace kwantrace {
      *
      * @param[in]  rayLocal ray in local object space
      * @param[out] t        Position of intersection
-     * @return              True if object is intersected by this ray. Output parameter r is unspecified if function returns false
+     * @return              True if object is intersected by this ray. Output parameter t is unspecified if function returns false. 
+     *
+     * Note that if the return value is false, the output parameter `t` is unspecified. This means
+     * callers of this function are not allowed to make any use of the `t` parameter they get
+     * if the function returns false. The implementations of this function are allowed to 
+     * stick any value they want here, or not change the parameter at all (which means
+     * it will still have the same value as when it was passed in). The value may be NaN, infinity,
+     * or some finite value that *still* doesn't mean anything to any outside process. For instance,
+     * the implementation might do a partial computation, then hit a check that decides that
+     * the ray doesn't hit the primitive. The implementation is fully within its rights to
+     * leave the partial computation in `t`.
      */
     virtual bool intersectLocal(const Ray &rayLocal, double& t) const=0;
     /** Generate the normal vector to an object at a point.
@@ -197,7 +224,11 @@ namespace kwantrace {
      *
      * It is unspecified behavior to call this on a point which is not on the surface
      * of an object -- the function may return any value at all. That being said, it is
-     * better to be forgiving in the face of floating point limited precision.
+     * better to be forgiving in the face of floating point limited precision. In other
+     * words, it is recommended that if you are given a point which is *close* to a point
+     * on your surface, return a value which is *close* to the normal at the point on the
+     * surface. The exact definition of *close* is up to the implementation, and does
+     * not necessarily mean the normal of the clos*est* point.
      *
      * Don't worry about returning a unit-length normal, that is done upstream. You can't
      * even do it if you wanted to, since it needs to be unit-length in world coordinates.
@@ -210,12 +241,14 @@ namespace kwantrace {
      */
     virtual bool insideLocal(const Position &rLocal) const = 0;
   public:
-    /** If true, the object is inside out. Primitive::inside() is inverted and the
-     * direction of the normal is reversed for inside-out images. */
+    /** If true, the object is inside-out. Primitive::inside() is inverted and the
+     * direction of the normal is reversed for inside-out primitives. Normally
+     * we don't care which side is outside, but such things as CSG difference
+     * are really just CSG intersection with inside-out objects.*/
     bool inside_out=false;
     virtual ~Primitive() {};
     virtual Observer<Primitive> intersect(const Ray &ray, double& t) const override {
-      if (intersectLocal(Mw2b * ray, t)) {
+      if (intersectLocal(Mbw * ray, t)) {
         return this;
       } else {
         return nullptr;
@@ -233,7 +266,7 @@ namespace kwantrace {
      *    \def\operatorname#1{{\mbox{#1}}}
      *  \f$
      * Special consideration must be taken to transform the normals into world coordinates.
-     * If you just use the \f$\MM{M}{_{b2w}}\f$ transformation, this will be wrong, as in general
+     * If you just use the \f$\MM{M}{_{wb}}\f$ transformation, this will be wrong, as in general
      * an arbitrary affine transformation does not preserve angles -- translation, rotation
      * and uniform scaling do, but non-uniform scaling does not. Shearing doesn't either,
      * but that can be thought of as a combination of a rotation and non-uniform scaling.
@@ -246,56 +279,55 @@ namespace kwantrace {
      * https://www.cs.auckland.ac.nz/courses/compsci373s1c/PatricesLectures/2011/CS373-Part1-Lecture11-RayTracing3.pdf ,
      * slide 11.
      *
-     * Assume there is some matrix \f$\MM{Q}{_{b2w}}\f$ which properly transforms a
-     * normal from body to world coordinates. As it so happens, there is, and
-     * it only depends on \f$\MM{M}{_{b2w}}\f$, not any of \f$\vec{r}\f$, \f$\vec{n}\f$,
-     * or \f$\vec{p}\f$. That's the wonderful thing about linear algebra, is that it's *linear*.
+     * Assume there is some matrix \f$\MM{Q}{_{wb}}\f$ which properly transforms a
+     * normal from body to world coordinates. Let's hope there is, and that it is uniform over space (doesn't depend on
+     * \f$\vec{r}\f$) or on the actual shape of the surface (doesn't depend on normal vector \f$\vec{n}\f$). If this turned out
+     * to not be the case, we would have to do something more complicated. As it so happens, there is a solution, and
+     * it only depends on \f$\MM{M}{_{wb}}\f$. That's the wonderful thing about linear algebra, is that it's *linear*.
      * Starting from the assumption that there *is* an answer, we
-     * will construct the answer and show that it only depends on \f$\MM{M}{_{b2w}}\f$
+     * will construct the answer and show that it only depends on \f$\MM{M}{_{wb}}\f$
      *
-     * In the body frame, imagine the direction vectors \f$\vec{p}\f$ parallel to the surface
-     * and therefore perpendicular to the normal. There are an infinite number of such vectors, and what
+     * Imagine the direction vectors \f$\vec{p}\f$ parallel to the surface
+     * and therefore perpendicular to the normal \f$\vec{n}\f$. There are an infinite number of such vectors, and what
      * we do below has to apply to them all, so it can't depend on the particular value of \f$\vec{p}\f$.
-     *
-     * Since any such vector is parallel to the surface, it is perpendicular to the normal \f$\vec{n}\f$
-     * and therefore \f$\vec{n}\cdot\vec{p}=0\f$. Considering the vectors to be column
+     * Therefore \f$\vec{n}\cdot\vec{p}=0\f$. Considering the vectors to be column
      * vectors, we can express the dot product as a matrix product if we transpose
      * the first vector, so we have \f$\M{n}\T\M{p}=0\f$.
      *
-     * These vectors *do* obey the \f$\MM{M}{_{b2w}}\f$ transformation, since they must follow
+     * These vectors \f$\vec{p}\f$ *do* obey the \f$\MM{M}{_{wb}}\f$ transformation, since they must follow
      * the surface, and the surface certainly does obey the transformation. We will have
-     * \f$\vec{p}'=\MM{M}{_{b2w}}\vec{p}\f$.
+     * \f$\vec{p}_w=\MM{M}{_{wb}}\vec{p}_b\f$.
      *
-     * Any new normal \f$\vec{n}'\f$ must still be perpendicular, so it must be true that
-     * \f$\vec{n}'\cdot\vec{p}'=0\f$, or \f$\MM{n}{'}\T\MM{p}{'}=0\f$. We substitute in
-     * \f$\vec{n}'=\MM{Q}{_{b2w}}\vec{n}\f$ and \f$\vec{p}'=\MM{M}{_{b2w}}\vec{p}\f$
+     * Any new normal \f$\vec{n}_w\f$ must still be perpendicular, so it must be true that
+     * \f$\vec{n}_w\cdot\vec{p}_w=0\f$, or \f$\MM{n}{_w}\T\MM{p}{_w}=0\f$. We substitute in
+     * \f$\vec{n}_w=\MM{Q}{_{wb}}\vec{n}_b\f$ and \f$\vec{p}_w=\MM{M}{_{wb}}\vec{p}_b\f$
      * into our matrix dot product and come up with:
      *
-     * \f$(\MM{Q}{_{b2w}}\M{n})\T(\MM{M}{_{b2w}}\M{p})=0\f$
+     * \f$(\MM{Q}{_{wb}}\MM{n}{_b})\T(\MM{M}{_{wb}}\MM{p}{_b})=0\f$
      *
      * Now it's just linear algebra:
      *
      *  \f$\begin{eqnarray*}
-     *  0&=&(\MM{Q}{_{b2w}}\M{n})\T(\MM{M}{_{b2w}}\M{p}) \\
-     *   &=&(\M{n}\T\MM{Q}{_{b2w}}\T)(\MM{M}{_{b2w}}\M{p}) \\
-     *   &=&\M{n}\T\MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}\M{p} \\
+     *  0&=&(\MM{Q}{_{wb}}\MM{n}{_b})\T(\MM{M}{_{wb}}\MM{p}{_b}) \\
+     *   &=&(\MM{n}{_b}\T\MM{Q}{_{wb}}\T)(\MM{M}{_{wb}}\MM{p}{_b}) \\
+     *   &=&\MM{n}{_b}\T\MM{Q}{_{wb}}\T\MM{M}{_{wb}}\MM{p}{_b} \\
      *  \end{eqnarray*}\f$
      *
      *  If that middle cluster of matrices simplified into an identity matrix, we would
-     *  be left with \f$\M{n}\T\M{p}=0\f$, which is assumed to be true as our starting
+     *  be left with \f$\MM{n}{_b}\T\MM{p}{_b}=0\f$, which is assumed to be true as our starting
      *  condition. So, [all we have to do now is to take these lies and makes them true
      *  somehow...](https://youtu.be/diYAc7gB-0A?t=127) We assume that the middle cluster of matrices
-     *  is identity, then solve for \f$\MM{Q}{_{b2w}}\f$ given find a \f$\MM{M}{_{b2w}}\f$.
+     *  is identity, then solve for \f$\MM{Q}{_{wb}}\f$ given an \f$\MM{M}{_{wb}}\f$.
      *
      *  \f$\begin{eqnarray*}
-     *  \MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}&=&\M{1} \\
-     *  \MM{Q}{_{b2w}}\T\MM{M}{_{b2w}}\MM{M}{_{b2w}}^{-1}&=&\M{1}\MM{M}{_{b2w}}^{-1} \\
-     *  \MM{Q}{_{b2w}}\T&=&\MM{M}{_{b2w}}^{-1} \\
-     *  \MM{Q}{_{b2w}}&=&(\MM{M}{_{b2w}}^{-1})\T \\
+     *  \MM{Q}{_{wb}}\T\MM{M}{_{wb}}&=&\M{1} \\
+     *  \MM{Q}{_{wb}}\T\MM{M}{_{wb}}\MM{M}{_{wb}}^{-1}&=&\M{1}\MM{M}{_{wb}}^{-1} \\
+     *  \MM{Q}{_{wb}}\T&=&\MM{M}{_{wb}}^{-1} \\
+     *  \MM{Q}{_{wb}}&=&(\MM{M}{_{wb}}^{-1})\T \\
      *  \end{eqnarray*}\f$
      *
      *  And there it is. There is a matrix that transforms a normal from body to world space,
-     *  that only depends on matrix \f$\MM{M}{_{b2w}}\f$, not on any of the vectors.
+     *  that only depends on matrix \f$\MM{M}{_{wb}}\f$, not on any of the vectors.
      *
      *  Since this is commonly used, we will ask our transformation chain to calculate it
      *  at the same time that it concatenates all of the transformations into a single matrix.
@@ -309,7 +341,7 @@ namespace kwantrace {
      * @return Unit normal vector in world coordinates
      */
     virtual Direction normal(const Position &r) const {
-      return (Direction) ((inside_out ? -1 : 1) * (Mb2wN * normalLocal(Mw2b * r)).normalized());
+      return (Direction) ((inside_out ? -1 : 1) * (MwbN * normalLocal(Mbw * r)).normalized());
     }
     /** Calculate if a point is inside the primitive. This transforms
      * the point to body coordinates, calls the descendant's
@@ -322,12 +354,13 @@ namespace kwantrace {
      * @return True if point is inside the primitive
      */
     virtual bool inside(const Position &r) const override {
-      return inside_out ^ insideLocal(Mw2b * r);
+      return inside_out ^ insideLocal(Mbw * r);
     }
   };
 
 }
 
 #include "Sphere.h"
+#include "Plane.h"
 
 #endif //KWANTRACE_RENDERABLE_H

@@ -60,26 +60,26 @@ namespace kwantrace {
       for (auto&& trans:transformList) {
         result = trans->matrix() * result;
       }
-      return result.matrix();
+      return result;
     }
     /** List of pointers to physical transformations to be performed, in order. The transformations themselves
      * can be changed through their pointer, but prepareRender must be called to actually apply the transformation
      */
     TransformList transformList;
   public:
-    Eigen::Matrix4d Mb2w; ///< Body-to-world transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
-    Eigen::Matrix4d Mw2b; ///< World-to-body transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
-    Eigen::Matrix4d Mb2wN;///< Body-to-world transformation matrix for surface normals, only valid between a call to prepareRender and any changes to any transforms in the list
+    Eigen::Matrix4d Mwb; ///< World-from-body transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
+    Eigen::Matrix4d Mbw; ///< Body-from-world transformation matrix, only valid between a call to prepareRender and any changes to any transforms in the list
+    Eigen::Matrix4d MwbN;///< World-from-body transformation matrix for surface normals, only valid between a call to prepareRender and any changes to any transforms in the list
     virtual ~Transformable()=default; ///< Allow there to be subclasses
     /** Prepare for rendering
      *
      * \internal This is done by calling combine() to combine all of the transformations, and
-     *    then computing ancillary matrices Mb2w, Mw2b, and Mb2wN, which will also be needed.
+     *    then computing ancillary matrices Mwb, Mbw, and MwbN, which will also be needed.
      */
     virtual void prepareRender() {
-      Mb2w = combine();
-      Mw2b = Mb2w.inverse();
-      Mb2wN = Mw2b.transpose();
+      Mwb = combine();
+      Mbw = Mwb.inverse();
+      MwbN = Mbw.transpose();
     }
 
     /** Add a transformation to the list
@@ -184,7 +184,15 @@ namespace kwantrace {
       add(result);
       return result;
     }
-
+    /** Create a transformation like the POV-Ray location-lookat and add it to the list.
+     *
+     * @param location Location in world frame which body frame origin maps to
+     * @param look_at Look-at point in world frame.
+     * @param p_b Primary direction in body frame, will be mapped to direction (look_at-location)
+     * @param t_b Secondary direction in body frame, will be mapped as close as possible to t_r
+     * @param t_r Secondary direction in world frame, referred to as Sky in POV-Ray
+     * @return pointer to the transformation
+     */
     std::shared_ptr<LocationLookat> locationLookat(
       const Position &location,
       const Position &look_at,
