@@ -96,6 +96,41 @@ namespace kwantrace {
       return result;
     };
   };
+
+  /** Represents a Constructive Solid Geometry (CSG) union. As is implied by union,
+   * a point is inside a union if it is inside *any* of its children. See Intersection
+   * for an object where you have to be inside *all* of the children.
+   */
+  class Intersection : public Composite {
+  public:
+    /** \copydoc Renderable::intersect()
+     *
+     * In an intersection, the valid ray intersect is the smallest one that is inside of every *other* child, since
+     * of course the intersect will be on the surface of one of the children.
+     */
+    virtual Observer<Primitive> intersect(const Ray &ray, double &t) const override {
+      const Primitive *result=nullptr;
+      t = std::numeric_limits<double>::infinity();
+      for (auto &&child:children) {
+        double this_t;
+        const Primitive *this_result = child->intersect(ray, this_t);
+        if (this_result && this_t < t) {
+          t = this_t;
+          result = this_result;
+        }
+      }
+      return result;
+    };
+
+    virtual bool inside(const Position &r) const override {
+      bool result = false;
+      for (auto &&child:children) {
+        result |= child->inside(r);
+      }
+      return result;
+    };
+  };
+
 }
 
 #endif //KWANTRACE_COMPOSITE_H
