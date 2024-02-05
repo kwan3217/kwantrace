@@ -32,8 +32,8 @@ namespace kwantrace {
      * visible surface geometry.
      *
      * @param[in] ray Ray in world space
-     * @param[out] t Ray parameter of intersection
-     * @return              Pointer to Primitive if ray intersects surface, nullptr if not.
+     * @return              Pointer to Primitive if ray intersects      * @param[out] t Ray parameter of intersection
+, nullptr if not.
      *                         Output parameter t is unspecified if function returns false
      */
     virtual Observer<Primitive> intersect(const Ray &ray,double& t) const=0;
@@ -231,7 +231,7 @@ namespace kwantrace {
     bool inside_out=false;
     virtual ~Primitive() {};
     virtual Observer<Primitive> intersect(const Ray &ray, double& t) const override {
-      if (intersectLocal(Mw2b * ray, t)) {
+      if (intersectLocal(Mbw * ray, t)) {
         return this;
       } else {
         return nullptr;
@@ -270,12 +270,10 @@ namespace kwantrace {
      * Starting from the assumption that there *is* an answer, we
      * will construct the answer and show that it only depends on \f$\MM{M}{_{wb}}\f$
      *
-     * In the body frame, imagine the direction vectors \f$\vec{p}\f$ parallel to the surface
-     * and therefore perpendicular to the normal. There are an infinite number of such vectors, and what
+     * Imagine the direction vectors \f$\vec{p}\f$ parallel to the surface
+     * and therefore perpendicular to the normal \f$\vec{n}\f$. There are an infinite number of such vectors, and what
      * we do below has to apply to them all, so it can't depend on the particular value of \f$\vec{p}\f$.
-     *
-     * Since any such vector is parallel to the surface, it is perpendicular to the normal \f$\vec{n}\f$
-     * and therefore \f$\vec{n}\cdot\vec{p}=0\f$. Considering the vectors to be column
+     * Therefore \f$\vec{n}\cdot\vec{p}=0\f$. Considering the vectors to be column
      * vectors, we can express the dot product as a matrix product if we transpose
      * the first vector, so we have \f$\M{n}\T\M{p}=0\f$.
      *

@@ -64,6 +64,24 @@ namespace kwantrace {
    * for loading the scene with objects, lights, a camera, etc. Once
    * everything is in place, you call the Scene::render() method to
    * actually do the rendering.
+   *
+   * 1. Set up the scene (done by the caller)
+   *    * Set up renderable objects
+   *        * Set the textures etc for each object
+   *    * Set up lights
+   *    * Set up camera
+   * 1. Render the scene (done in `kwantrace::Scene::render()`)
+   *    1. Call `prepareRender()` on all objects, lights, shaders, etc. This fills caches, concatenates transformation
+   *       matrices, etc. Do everything possible before the render, so that it doesn't have to be done for each pixel.
+   *    1. Loop over each pixel in the image. For each pixel:
+   *        1. Determine the pixel ray
+   *        1. Intersect it with the scene and find the nearest object.
+   *        1. Run the shader to figure out what color the object will be. This may itself
+   *            spawn shadow rays, reflected rays, refracted rays, etc.
+   *        1. Save the color in the pixel buffer
+   *
+   * This can be done in a loop -- set up the scene, render it, change the scene, re-render it, etc.
+   *
    * @tparam pixdepth Number of color channels. Three is typical color, but I can imagine less for native
    *                  grayscale or to try to get a performance improvement. I can also imagine more for
    *                  simulating an imaging spectrometer.
