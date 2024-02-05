@@ -46,6 +46,22 @@ namespace kwantrace {
       return child;
     }
 
+    /**Add a child to this composite. The input is passed right back out
+     * so that you can construct a child, add it to its parent, and get
+     * a handle to it, all in one line:
+     *
+     *      auto child=parent.add(std::make_shared<ChildType>(..child constructor arguments..));
+     *
+     * @param child A pointer to a child object
+     * @return The pointer is returned as-is.
+     */
+    template<typename T, typename ... Args>
+    std::shared_ptr<T> add(Args&&... args) {
+      auto result=std::make_shared<T>(std::forward<T>(args)...);
+      add(std::shared_ptr<Renderable>(result));
+      return result;
+    }
+
     /** \copydoc Renderable::add()
      *
      * This calls the superclass add(), then adds the transform
